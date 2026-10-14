@@ -21,7 +21,10 @@
       "cannot_connect": "Could not reach the Nature Remo API. Please try again later."
     },
     "abort": {
-      "reauth_successful": "Re-authentication was successful."
+      "reauth_successful": "Re-authentication was successful.",
+      "already_configured": "This Nature account is already configured.",
+      "already_in_progress": "Setup for this Nature account is already in progress.",
+      "unique_id_mismatch": "The access token belongs to a different Nature account."
     }
   },
   "entity": {
@@ -99,6 +102,10 @@
     "motion_entity_migration": {
       "title": "Motion sensor entity IDs have changed",
       "description": "Motion sensors now use the binary_sensor domain. Update sensor. references to the binary_sensor. IDs below in automations, scripts and dashboards. Names, icons, areas and disabled/hidden settings were preserved.\n\n{entities}\n\nDismiss this repair after updating your references."
+    },
+    "duplicate_account": {
+      "title": "Duplicate Nature account registrations",
+      "description": "The same Nature account is registered more than once. Keep one registration and delete the others from Settings → Devices & services. No registrations have been deleted automatically.\n\n{entries}"
     }
   },
   "options": {

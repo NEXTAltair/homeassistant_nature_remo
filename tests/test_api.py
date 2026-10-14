@@ -239,3 +239,20 @@ async def test_signal_send_error_raises(
 
     with pytest.raises(NatureRemoError):
         await api.send_command_signal("signal-1")
+
+
+@pytest.mark.parametrize("payload", [{}, {"id": ""}, {"id": "   "}, {"id": None}, {"id": 1}, {"id": []}, [], None])
+async def test_invalid_user_identity_raises(hass, aioclient_mock, payload):
+    """Missing, empty and non-string user IDs never become config entry identifiers."""
+    aioclient_mock.get(f"{NATURE_REMO_URL}/users/me", json=payload)
+    api = NatureRemoAPI("token", async_get_clientsession(hass))
+    with pytest.raises(NatureRemoError):
+        await api.get_user_id()
+
+
+async def test_user_identity_uses_authenticated_request(hass, aioclient_mock):
+    """The shared request path authenticates and returns the stable user ID."""
+    aioclient_mock.get(f"{NATURE_REMO_URL}/users/me", json={"id": "user-1", "nickname": "Example"})
+    api = NatureRemoAPI("token", async_get_clientsession(hass))
+    assert await api.get_user_id() == "user-1"
+    assert aioclient_mock.mock_calls[0][3]["Authorization"] == "Bearer token"

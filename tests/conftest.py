@@ -16,6 +16,7 @@ from custom_components.nature_remo.const import DOMAIN
 DEVICES_URL = f"{NATURE_REMO_URL}/devices"
 APPLIANCES_URL = f"{NATURE_REMO_URL}/appliances"
 ECHONETLITE_URL = f"{NATURE_REMO_URL}/echonetlite/appliances"
+USERS_URL = f"{NATURE_REMO_URL}/users/me"
 NORMAL_WATER_HEATER = {"80": "30", "85": "0012d687", "b0": "41", "b2": "42", "c0": "41",
                        "c3": "42", "e1": "0172", "e3": "41", "ea": "43"}
 
@@ -33,7 +34,7 @@ def auto_enable_custom_integrations(enable_custom_integrations):
 @pytest.fixture
 def config_entry() -> MockConfigEntry:
     """Config entry with an access token."""
-    return MockConfigEntry(domain=DOMAIN, title="Nature Remo", data={"api_key": "token"})
+    return MockConfigEntry(domain=DOMAIN, title="Nature Remo", data={"api_key": "token"}, unique_id="user-1")
 
 
 def make_device(events: dict[str, Any] | None = None) -> dict[str, Any]:
@@ -104,9 +105,15 @@ def mock_api(
     status: int = 200,
     headers: dict[str, str] | None = None,
     echonetlite: Any = None,
+    user: Any = None,
+    user_status: int | None = None,
 ) -> None:
-    """Register GET /devices and GET /appliances responses (replacing earlier ones)."""
+    """Register account and appliance responses (replacing earlier ones)."""
     aioclient_mock.clear_requests()
+    aioclient_mock.get(
+        USERS_URL, json={"id": "user-1"} if user is None else user,
+        status=status if user_status is None else user_status,
+    )
     aioclient_mock.get(
         DEVICES_URL,
         status=status,

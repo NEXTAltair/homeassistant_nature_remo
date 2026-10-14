@@ -136,5 +136,5 @@ async def test_loaded_entry_reauth_reloads_only_once(hass, aioclient_mock, confi
     assert config_entry.data["api_key"] == token
     assert not any(record.name == "homeassistant.helpers.frame" and record.levelno >= 30 for record in caplog.records)
     # 検証の GET /devices と再読込の二つの GET だけ。
-    # Only the validation GET /devices and the two reload GETs.
+    # Only the validation GET /users/me and the two reload GETs.
     assert aioclient_mock.call_count == initial_requests + 3
