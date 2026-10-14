@@ -136,3 +136,20 @@ def make_ir() -> dict[str, Any]:
         "model": None,
         "signals": [{"id": "signal-on", "name": "On"}, {"id": "signal-off", "name": "Off"}],
     }
+
+
+def make_tv() -> dict[str, Any]:
+    """実データと同じ形の架空の TV。 / A synthetic TV with the real response shape."""
+    return {
+        "id": "tv-1", "type": "TV", "nickname": "TV", "device": make_device(),
+        "model": {"manufacturer": "Example", "name": "TV 1"},
+        "tv": {
+            "buttons": [
+                {"name": name, "label": label, "image": "ico_tv"}
+                for name, label in [("power", "電源"), ("select-input-src", "入力切替"),
+                                    ("vol-up", "Volume Up"), ("mute", "Mute"), ("", "空欄")]
+            ],
+            "state": {"input": "t"},
+        },
+        "signals": [{"id": "tv-signal-1", "name": "Learned HDMI"}],
+    }

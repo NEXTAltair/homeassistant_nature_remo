@@ -112,7 +112,14 @@ Entities are created only once, at platform setup, from those dicts. Newly added
 - Pressing calls `POST /signals/{id}/send`; API errors propagate to the caller without changing appliance state. Removed signals become unavailable through the existing coordinator.
 - Existing remote entities remain available for compatibility. New signals need an integration reload.
 
-**Remote:**
+**TV remote:**
+- `tv_remote.py` creates a remote for every TV, even without learned signals, using `nature_remo_remote_{appliance_id}`. It reads current buttons, signals and `tv.state.input` from the main coordinator.
+- Commands resolve case-insensitively in this order: canonical button name, label, learned signal name. Empty-name placeholders are ignored. Unknown commands raise localized service errors before sending.
+- Preset commands POST `/appliances/{id}/tv` with `button=<name>`. The successful TVState response is validated and stored in `tv.state`; learned signals use the existing signal endpoint. No extra GET is sent.
+- Only TVs with both `power-on` and `power-off` accept turn_on/off. HA remote cannot hide those shared services, so unsupported calls raise localized errors without sending. Explicit `power` is allowed.
+- Power starts unknown. Successful discrete sends set an assumed state; a toggle or learned signal clears it. No physical power state is inferred from input.
+
+**Legacy IR remote:**
 - Commands map case-insensitively to signal names from the Remo app.
 - Signals named `on`/`オン` and `off`/`オフ` back `turn_on`/`turn_off`.
 - Sends `POST /signals/{id}/send`.
