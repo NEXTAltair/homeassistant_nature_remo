@@ -112,6 +112,14 @@ Air conditioners use the v2 API and expose fan speed, vertical swing and horizon
 
 ---
 
+## Light Modes
+
+Use `nature_remo.send_light_mode` with `entity_id` and a supported button name in `mode` to control a light. The service finds the light's account each time, including when multiple accounts are configured. Disabled, unloaded or missing lights and unsupported modes return an error before sending a command. State changes only after a successful send.
+
+When response data is requested, the result remains `{"status": "success", "appliance_id": "..."}`.
+
+---
+
 ## Learned Signal Buttons
 
 Each signal registered in the Remo app creates a button with the signal name on its appliance device, including IR, AC, LIGHT and TV appliances. Press it from a dashboard or with `button.press`. Existing remote entities continue to work. Reload the integration after adding signals.
