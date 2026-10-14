@@ -2,10 +2,12 @@ import logging
 
 from aiohttp import ClientError
 
-from homeassistant.config_entries import ConfigEntry
-from homeassistant.core import HomeAssistant, ServiceCall
-from homeassistant.exceptions import ConfigEntryNotReady
+from homeassistant.config_entries import ConfigEntry, ConfigEntryState
+from homeassistant.core import HomeAssistant, ServiceCall, ServiceResponse, SupportsResponse
+from homeassistant.exceptions import ConfigEntryNotReady, ServiceValidationError
 from homeassistant.helpers.aiohttp_client import async_get_clientsession
+from homeassistant.helpers import config_validation as cv, entity_registry as er
+from homeassistant.helpers.typing import ConfigType
 from .api import NatureRemoAPI, NatureRemoError
 from .account import async_refresh_account_repairs, async_track_account
 from .aircon import AirconControl
@@ -17,6 +19,51 @@ from .echonetlite import NatureRemoEchonetLiteCoordinator, WATER_HEATER_TYPE
 
 _LOGGER = logging.getLogger(__name__)
 PLATFORMS = ["climate", "light", "sensor", "remote", "number", "binary_sensor", "button"]
+
+
+CONFIG_SCHEMA = cv.config_entry_only_config_schema(DOMAIN)
+
+
+async def async_setup(hass: HomeAssistant, config: ConfigType) -> bool:
+    """サービスを一度だけ登録。 / Register the service independently of entry lifetimes."""
+    async def handle_send_light_mode(call: ServiceCall) -> ServiceResponse:
+        entity_id = call.data.get("entity_id")
+        mode = call.data.get("mode", "on")
+        registry_entry = er.async_get(hass).async_get(entity_id) if isinstance(entity_id, str) else None
+        if registry_entry is None or registry_entry.domain != "light" or registry_entry.platform != DOMAIN:
+            raise ServiceValidationError(
+                translation_domain=DOMAIN,
+                translation_key="light_not_found",
+                translation_placeholders={"entity_id": str(entity_id)},
+            )
+
+        entry = hass.config_entries.async_get_entry(registry_entry.config_entry_id)
+        if (
+            entry is None
+            or entry.state is not ConfigEntryState.LOADED
+            or entry.disabled_by is not None
+            or registry_entry.disabled
+        ):
+            raise ServiceValidationError(
+                translation_domain=DOMAIN,
+                translation_key="light_not_loaded",
+                translation_placeholders={"entity_id": entity_id},
+            )
+        runtime = hass.data.get(DOMAIN, {}).get(entry.entry_id, {})
+        light_entity = runtime.get("lights", {}).get(registry_entry.id)
+        if light_entity is None or light_entity.entity_id != entity_id:
+            raise ServiceValidationError(
+                translation_domain=DOMAIN,
+                translation_key="light_not_loaded",
+                translation_placeholders={"entity_id": entity_id},
+            )
+        return await light_entity.async_send_light_mode(mode)
+
+    hass.services.async_register(
+        DOMAIN, "send_light_mode", handle_send_light_mode,
+        supports_response=SupportsResponse.OPTIONAL,
+    )
+    return True
 
 
 async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
@@ -83,38 +130,10 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
     hass.data[DOMAIN][entry.entry_id] = {
         "coordinator": coordinator,
         "api": api,
+        "lights": {},
         "aircon_controls": aircon_controls,
         "echonetlite_coordinator": echonetlite_coordinator,
     }
-
-    # カスタムサービスの登録
-    async def handle_send_light_mode(call: ServiceCall):
-        # サービスコールからエンティティIDと動作モードを取得する
-        entity_id = call.data.get("entity_id")
-        mode = call.data.get("mode", "on")
-
-        # entity_idからappliance_idを取り出す
-        _LOGGER.debug(f"coordinator.entity_map：{coordinator.entity_map}")
-        light_entity = coordinator.entity_map.get(entity_id)
-        if light_entity is None:
-            raise ValueError(f"{entity_id} not found in coordinator.entity_map")
-
-        if mode not in light_entity._supported_effects:
-            raise ValueError(f"Effect '{mode}' is not supported by this light")
-
-        # NatureRemo APIへリクエスト送信
-        await api.send_light_command(light_entity._appliance_id, mode)
-
-        # エンティティの内部状態を即時更新
-        light_entity._last_mode = mode
-        light_entity._is_on = mode != "off"
-        light_entity.async_write_ha_state()
-
-        return {"status": "success", "appliance_id": light_entity._appliance_id}
-
-    hass.services.async_register(
-        DOMAIN, "send_light_mode", handle_send_light_mode, supports_response=True
-    )
 
     async_migrate_motion_entities(hass, entry)
 

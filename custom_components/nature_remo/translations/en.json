@@ -96,6 +96,15 @@
     },
     "invalid_tv_response": {
       "message": "Nature Remo returned an invalid TV response."
+    },
+    "light_not_found": {
+      "message": "{entity_id} is not a registered Nature Remo light."
+    },
+    "light_not_loaded": {
+      "message": "{entity_id} is unavailable because its Nature Remo entry or light entity is not loaded or is disabled."
+    },
+    "unsupported_light_mode": {
+      "message": "The mode {mode} is not supported by {entity_id}."
     }
   },
   "issues": {

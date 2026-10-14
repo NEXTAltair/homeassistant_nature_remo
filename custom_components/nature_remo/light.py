@@ -3,7 +3,7 @@ import voluptuous as vol
 from homeassistant.components.light import LightEntity, ColorMode
 from homeassistant.config_entries import ConfigEntry
 from homeassistant.core import HomeAssistant
-from homeassistant.exceptions import HomeAssistantError
+from homeassistant.exceptions import HomeAssistantError, ServiceValidationError
 from homeassistant.helpers import config_validation as cv
 from homeassistant.helpers.entity_platform import AddEntitiesCallback
 from .coordinator import NatureRemoCoordinator
@@ -63,6 +63,8 @@ class NatureRemoLight(LightEntity):
     Representation of a Nature Remo light device.
     """
 
+    _attr_should_poll = False
+
     def __init__(self, coordinator, appliance, device, api) -> None:
         """ライトエンティティの初期設定を行う. / Initialize the light entity."""
         self._attr_unique_id = f"nature_remo_light_{appliance['appliance_id']}"
@@ -112,7 +114,31 @@ class NatureRemoLight(LightEntity):
         self.async_on_remove(self._coordinator.async_add_listener(self.update_status))
         self.update_status()
         self.async_write_ha_state()  # 状態をHome Assistantに通知
-        self._coordinator.entity_map[self.entity_id] = self
+        # 改名しても変わらないレジストリ ID で、稼働中の照明だけを保持。
+        # Track only active lights by the registry ID, which survives entity renames.
+        lights = self.hass.data[DOMAIN][self._coordinator.config_entry.entry_id]["lights"]
+        registry_id = self.registry_entry.id
+        lights[registry_id] = self
+
+        def remove_light():
+            if lights.get(registry_id) is self:
+                lights.pop(registry_id)
+
+        self.async_on_remove(remove_light)
+
+    async def async_send_light_mode(self, mode: str) -> dict[str, str]:
+        """成功した操作だけ状態に反映。 / Publish the requested mode only after a successful send."""
+        if mode not in self._supported_effects:
+            raise ServiceValidationError(
+                translation_domain=DOMAIN,
+                translation_key="unsupported_light_mode",
+                translation_placeholders={"mode": str(mode), "entity_id": self.entity_id},
+            )
+        await self._api.send_light_command(self._appliance_id, mode)
+        self._last_mode = mode
+        self._is_on = mode != "off"
+        self.async_write_ha_state()
+        return {"status": "success", "appliance_id": self._appliance_id}
 
     def update_status(self) -> None:
         """
