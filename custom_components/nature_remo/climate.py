@@ -11,6 +11,7 @@ from homeassistant.helpers.update_coordinator import CoordinatorEntity
 from homeassistant.util.unit_conversion import TemperatureConverter
 
 from .const import DOMAIN
+from .device import appliance_device_info
 
 MODE_MAP = {
     HVACMode.COOL: "cool",
@@ -38,20 +39,11 @@ class NatureRemoClimate(CoordinatorEntity, ClimateEntity):
     def __init__(self, coordinator, control, entry_id):
         super().__init__(coordinator)
         self.control = control
+        self._attr_device_info = appliance_device_info(control.appliance)
         self._entry_id = entry_id
         self._device_id = control.appliance["device"]["id"]
         self._attr_unique_id = f"nature_remo_climate_{control.appliance_id}"
         self._attr_name = f"Nature Remo {control.appliance['nickname']}"
-
-    @property
-    def device_info(self):
-        device = self.control.appliance["device"]
-        return {
-            "identifiers": {(DOMAIN, self._device_id)},
-            "name": device["name"],
-            "manufacturer": "Nature",
-            "model": device.get("firmware_version", "Nature Remo"),
-        }
 
     @property
     def available(self):

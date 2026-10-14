@@ -115,3 +115,24 @@ def mock_api(
         json=[] if appliances is None else appliances,
         headers=headers,
     )
+
+
+def make_light() -> dict[str, Any]:
+    """架空の照明。 / A synthetic preset light."""
+    return {
+        "id": "light-1", "type": "LIGHT", "nickname": "Light",
+        "device": make_device(),
+        "model": {"manufacturer": "Example", "name": "Lamp 1"},
+        "light": {"state": {"power": "on", "last_button": "on"},
+                  "buttons": [{"name": name, "label": name} for name in ("on", "off", "night")]},
+        "signals": [],
+    }
+
+
+def make_ir() -> dict[str, Any]:
+    """架空の学習リモコン。 / A synthetic learned remote."""
+    return {
+        "id": "ir-1", "type": "IR", "nickname": "Fan", "device": make_device(),
+        "model": None,
+        "signals": [{"id": "signal-on", "name": "On"}, {"id": "signal-off", "name": "Off"}],
+    }

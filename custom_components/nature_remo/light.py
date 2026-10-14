@@ -8,6 +8,7 @@ from homeassistant.helpers import config_validation as cv
 from homeassistant.helpers.entity_platform import AddEntitiesCallback
 from .coordinator import NatureRemoCoordinator
 from .const import DOMAIN
+from .device import appliance_device_info
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -70,21 +71,13 @@ class NatureRemoLight(LightEntity):
         self._appliance = appliance
         self._device = device
         self._appliance_id = appliance["appliance_id"]
-        self._attr_supported_color_modes = ColorMode.ONOFF
+        self._attr_device_info = appliance_device_info(coordinator.data[self._appliance_id])
+        self._attr_supported_color_modes = {ColorMode.ONOFF}
         self._is_on = False  # 照明のON/OFF状態
         self._last_mode = "on"  # 最後に指定した照明状態
         self._supported_effects = ["on", "off", "night"]
 
         self._api = api
-
-    @property
-    def device_info(self):
-        return {
-            "identifiers": {(DOMAIN, self._device["device_id"])},
-            "name": self._device["name"],
-            "manufacturer": "Nature",
-            "model": self._device.get("firmware_version", "Nature Remo"),
-        }
 
     @property
     def supported_color_modes(self):

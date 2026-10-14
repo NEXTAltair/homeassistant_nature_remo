@@ -5,6 +5,7 @@ from homeassistant.exceptions import ServiceValidationError
 from homeassistant.helpers.update_coordinator import CoordinatorEntity
 
 from .const import DOMAIN
+from .device import appliance_device_info
 
 
 async def async_setup_entry(hass, entry, async_add_entities):
@@ -30,12 +31,8 @@ class TemperatureOffset(CoordinatorEntity, NumberEntity):
     def __init__(self, coordinator, control):
         super().__init__(coordinator)
         self.control = control
+        self._attr_device_info = appliance_device_info(control.appliance)
         self._attr_unique_id = f"nature_remo_temperature_offset_{control.appliance_id}"
-
-    @property
-    def device_info(self):
-        device = self.control.appliance.get("device", {})
-        return {"identifiers": {(DOMAIN, device["id"])}}
 
     @property
     def available(self):

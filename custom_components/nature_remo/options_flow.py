@@ -2,11 +2,11 @@ import logging
 
 from homeassistant import config_entries
 from homeassistant.helpers import selector
-from homeassistant.helpers.device_registry import async_get as async_get_device_registry
 
 import voluptuous as vol
 
 from .const import DOMAIN
+from .device import remo_registry_devices
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -19,12 +19,7 @@ class NatureRemoOptionsFlowHandler(config_entries.OptionsFlow):
 
     async def async_step_init(self, user_input=None):
 
-        device_registry = async_get_device_registry(self.hass)
-        devices = [
-            dev
-            for dev in device_registry.devices.values()
-            if dev.config_entries and self.config_entry.entry_id in dev.config_entries
-        ]
+        devices = remo_registry_devices(self.hass, self.config_entry)
 
         options = self.config_entry.options
         lang = self.hass.config.language

@@ -9,6 +9,7 @@ from .aircon import AirconControl
 from .coordinator import NatureRemoCoordinator
 from .const import DOMAIN
 from .migration import async_migrate_motion_entities
+from .device import async_register_devices
 
 _LOGGER = logging.getLogger(__name__)
 PLATFORMS = ["climate", "light", "sensor", "remote", "number", "binary_sensor"]
@@ -33,6 +34,7 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
     update_interval = entry.options.get("update_interval", 60)
     coordinator = NatureRemoCoordinator(hass, entry, api, update_interval)
     await coordinator.async_config_entry_first_refresh()
+    async_register_devices(hass, entry, coordinator)
 
     # 両プラットフォームで設定を共有する。 / Share settings between both platforms.
     aircon_controls = {
