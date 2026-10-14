@@ -42,7 +42,7 @@ The final check is loading the integration in a real Home Assistant instance:
 **One main coordinator per config entry, plus an optional ECHONET Lite coordinator.** `__init__.py:async_setup_entry`:
 1. Creates `NatureRemoAPI(entry.data["api_key"], async_get_clientsession(hass))` and a `NatureRemoCoordinator`.
 2. Stores the main coordinator, API, shared aircon controls and optional `echonetlite_coordinator` in `hass.data[DOMAIN][entry.entry_id]`.
-3. Registers the `nature_remo.send_light_mode` service.
+3. Initializes the per-entry active light registry used by `nature_remo.send_light_mode`; `async_setup` registers the service once.
 4. Sets up `sensor` first so external relays are ready, then forwards to `climate`, `light`, `remote`, `number`, `binary_sensor` and `button`.
 
 **The coordinator does two things per poll** (`coordinator.py:_async_update_data`). The interval comes from `entry.options["update_interval"]` and defaults to 60 s. It calls `GET /devices` and `GET /appliances`, then:
@@ -66,6 +66,7 @@ Entities are created only once, at platform setup, from those dicts. Newly added
 
 **Entity patterns:**
 - **`light.py`** uses plain `LightEntity`.
+  - Entity polling is disabled; coordinator notifications supply all polled updates.
   - They hold private `_state` fields and subscribe manually via `coordinator.async_add_listener(self.update_status)` in `async_added_to_hass`.
   - After a command succeeds, they set state from the API response.
 - **`climate.py` / `number.py` / `sensor.py` / `remote.py` / `binary_sensor.py` / `button.py`** use `CoordinatorEntity` and read from the coordinator dicts in properties.
@@ -103,9 +104,10 @@ Entities are created only once, at platform setup, from those dicts. Newly added
 - Relative auto/dry temperatures use a number (-3..3, step 0.5); climate hides its target temperature in those modes. Singleton empty `dir`/`dirh` options mean unsupported swing.
 
 **Light custom service:**
-- Light entities register themselves in `coordinator.entity_map[entity_id]`.
-- The `send_light_mode` service handler in `__init__.py` looks them up there and validates against the light's button names (`_supported_effects`).
-- It then mutates the entity's private state directly.
+- `async_setup` registers `send_light_mode` once with an optional response; `CONFIG_SCHEMA` restricts configuration to config entries. The service remains registered after entry unload.
+- Each call resolves the entity registry record, checks that it is a Nature Remo light on a loaded, enabled entry, and finds the active light in `hass.data[DOMAIN][entry_id]["lights"]` by stable registry ID.
+- Lights register in `async_added_to_hass` and remove themselves through `async_on_remove`, including on disable, rename and unload. No coordinator entity map remains.
+- Missing/wrong targets, unloaded/disabled targets and unsupported button modes raise translated `ServiceValidationError`. The entity sends through its own API and updates its state only after success. The response stays `{"status": "success", "appliance_id": ...}`.
 
 **Signal buttons:**
 - Each signal on any appliance creates a button named after the signal, attached to its appliance device.

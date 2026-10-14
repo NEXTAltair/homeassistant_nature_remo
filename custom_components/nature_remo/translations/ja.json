@@ -93,6 +93,15 @@
     },
     "invalid_tv_response": {
       "message": "Nature Remo からテレビの不正な応答が返されました。"
+    },
+    "light_not_found": {
+      "message": "{entity_id} は Nature Remo の照明として登録されていません。"
+    },
+    "light_not_loaded": {
+      "message": "{entity_id} は、Nature Remo の登録または照明エンティティが未読み込みか無効のため利用できません。"
+    },
+    "unsupported_light_mode": {
+      "message": "{entity_id} はモード {mode} に対応していません。"
     }
   },
   "issues": {

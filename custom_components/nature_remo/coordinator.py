@@ -5,7 +5,6 @@ from aiohttp import ClientError
 
 from homeassistant.config_entries import ConfigEntry
 from homeassistant.core import HomeAssistant
-from homeassistant.components.light import LightEntity
 from homeassistant.exceptions import ConfigEntryAuthFailed
 from homeassistant.helpers.update_coordinator import DataUpdateCoordinator, UpdateFailed
 
@@ -39,7 +38,6 @@ class NatureRemoCoordinator(DataUpdateCoordinator):
         self.ir_remotes = {}
         self.smart_meters = {}
         self.motion_sensors = {}  # motionセンサー用の辞書
-        self.entity_map: dict[str, LightEntity] = {}
 
     async def _async_update_data(self):
         """APIを1回だけ呼び、各アプライアンスの情報を取得."""
