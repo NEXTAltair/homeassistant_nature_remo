@@ -80,8 +80,19 @@ class NatureRemoConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
             except (NatureRemoError, ClientError, TimeoutError):
                 errors["base"] = "cannot_connect"
             else:
+                entry = self._get_reauth_entry()
+                if entry.update_listeners:
+                    # 更新時はリスナーが再読み込みする。同じ値なら明示的に一度だけ実行。
+                    # The listener reloads changed data; explicitly reload unchanged data once.
+                    changed = entry.data["api_key"] != user_input["api_key"]
+                    result = self.async_update_and_abort(
+                        entry, data_updates={"api_key": user_input["api_key"]}
+                    )
+                    if not changed:
+                        self.hass.config_entries.async_schedule_reload(entry.entry_id)
+                    return result
                 return self.async_update_reload_and_abort(
-                    self._get_reauth_entry(),
+                    entry,
                     data_updates={"api_key": user_input["api_key"]},
                 )
 

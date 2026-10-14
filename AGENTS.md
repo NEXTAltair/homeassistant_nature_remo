@@ -77,14 +77,15 @@ Entities are created only once, at platform setup, from those dicts. Newly added
 **Device grouping:** `device.py` builds all device information. Setup explicitly registers physical Remo devices, including sensorless Remo E hardware, before registering appliances. Hardware identifiers remain `(DOMAIN, remo_device_id)`; appliances use `(DOMAIN, appliance_id)` with nickname and model manufacturer/name. `async_update_device(via_device_id=...)` links each appliance to its hardware (supported since before HA 2025.12, avoiding the now-deprecated `via_device` argument). All appliance entities use the shared helper; built-in environmental and motion sensors remain on the hardware. Entity unique IDs and registered entity IDs stay unchanged. Options list only physical Remo registry devices, never appliance children.
 
 **Options flow** (`options_flow.py`):
-- The schema keys are *display labels* (Japanese or English, depending on `hass.config.language`). On submit they are mapped back to storage keys via `label_key_map`.
+- The first step selects the update interval and optional Remo hardware. The second step uses a fixed `device` section (`ip_address`, `external_temperature`, `external_humidity`), translated with the selected hardware name. External fields appear only for hardware with an AC.
+- Existing flat storage keys remain unchanged. Editing one device preserves all others. Optional sensor selections use suggestions, so clearing them removes the saved key. Selections must exist, have finite numeric states, and use °C/°F for temperature or % for humidity.
 - Stored keys:
   - `update_interval` (30/60/90)
   - `<HA device.id>`: an IP address, currently unused elsewhere
   - `external_temperature_<remo_device_id>`
   - `external_humidity_<remo_device_id>`
-- There is no options update listener. Saving posts a persistent notification asking the user to reload.
-- `translations/{en,ja}.json` cover only the config flow (user and reauth steps). The options flow still relies on its label keys.
+- The options update listener reloads the integration after saving and is removed on unload. No manual reload notification is posted.
+- `translations/{en,ja}.json` provide config and options fields, sections, errors, entity names and repairs.
 
 **External sensors (upstream Issue 4):**
 - `NatureRemoClimate` stores only `entry_id` and re-reads `entry.options` on each update.

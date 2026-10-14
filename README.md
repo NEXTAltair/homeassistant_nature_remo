@@ -65,8 +65,9 @@ Click the button below to easily add this repository to HACS.
 
 ## Options
 
-- You can set the update interval (in seconds)
-  - Default: `60 seconds`
+- Set the update interval (30, 60 or 90 seconds; default: 60).
+- Select a Remo device to open its settings section. Only Remo devices with an air conditioner show external temperature and humidity selections.
+- Save to apply changes automatically; the integration reloads without a separate notification. Leave the device selection empty to change only the interval.
 
 ⚠️ Nature Remo Cloud API has rate limits.  
 Setting a very short update interval may cause the integration to reach the API request limit.
@@ -128,16 +129,16 @@ data:
 
 ## External Temperature and Humidity Sensors
 
-You can now configure external temperature and humidity sensors for each device.
+Configure external temperature and humidity sensors for each Remo device that has an air conditioner.
 
 By selecting entities from Home Assistant settings, the climate device will use the specified sensors instead of the default values provided by Nature Remo.
 
 ### How it works
 
 - Open the integration settings from Home Assistant
-- Select a device
-- Choose temperature and humidity entities from available sensors
-- Save the configuration
+- Select the Remo device, then continue to its settings section
+- Choose temperature and humidity sensor entities, or clear a selection to return to the built-in sensor
+- Save; changes are applied by an automatic reload
 
 Once configured, the selected external sensors will be used for:
 
@@ -147,7 +148,8 @@ Once configured, the selected external sensors will be used for:
 ### Notes
 
 - If no external sensors are configured, the integration will continue to use the default values from Nature Remo
-- Any sensor entity with appropriate temperature or humidity values can be used
+- The selected entity must exist and have a finite numeric state. Temperature must use °C or °F, and humidity must use %.
+- Existing external sensor selections are preserved when upgrading. Editing one Remo leaves other devices unchanged.
 
 ---
 
