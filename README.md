@@ -78,11 +78,22 @@ Setting a very short update interval may cause the integration to reach the API 
 | Type    | Description                                                        |
 |---------|--------------------------------------------------------------------|
 | climate | Control air conditioners (cooling, heating, dry)                   |
+| number  | Auto/Dry temperature offset for supported air conditioners         |
 | light   | Control lights (on/off, mode selection)                            |
 | sensor  | Temperature, humidity, illuminance, motion, power (buy/sell)      |
 | remote  | Send infrared signals defined as "signals" for IR/AC/LIGHT types  |
 
 *Additional entities may be supported in future updates.*
+
+---
+
+## Air Conditioner Controls
+
+Air conditioners use the v2 API and expose fan speed, vertical swing and horizontal swing when the model supports them. Temperature units follow the appliance settings.
+
+- Turning on an air conditioner that is off always starts **Auto** mode. Calling turn on while it is running does nothing. Models without Auto do not offer turn on; choose a supported HVAC mode instead.
+- Auto and Dry modes with relative temperatures expose a **Temperature offset** number (-3 to +3, step 0.5). It is unavailable in other modes or while off. The climate entity does not display an absolute target temperature in these modes.
+- The last confirmed offset is reused when starting Auto. Commands update both entities only after a successful response.
 
 ---
 

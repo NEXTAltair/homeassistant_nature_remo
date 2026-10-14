@@ -104,13 +104,13 @@ class NatureRemoAPI:
         self._token = token
         self._session = session
 
-    async def _request(self, method: str, path: str, data=None):
+    async def _request(self, method: str, path: str, data=None, *, version: int = 1):
         """
         Nature Remo APIへリクエストを送り、レスポンスのJSONを返す. 失敗時は例外を送出する.
         Send a request to the Nature Remo API and return the JSON body; raise on failure.
         """
         headers = {"Authorization": f"Bearer {self._token}"}
-        url = f"{NATURE_REMO_URL}{path}"
+        url = f"{NATURE_REMO_URL.rsplit('/', 1)[0]}/{version}{path}"
         async with self._session.request(
             method, url, headers=headers, data=data, timeout=REQUEST_TIMEOUT
         ) as response:
@@ -165,7 +165,7 @@ class NatureRemoAPI:
         """
         _LOGGER.info("Setting payload: %s", payload)
         response_json = await self._request(
-            "POST", f"/appliances/{appliance_id}/aircon_settings", data=payload
+            "POST", f"/appliances/{appliance_id}/aircon_settings", data=payload, version=2
         )
         _LOGGER.info("エアコンの操作に成功しました: %s", response_json)
         return response_json

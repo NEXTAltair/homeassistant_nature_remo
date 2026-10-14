@@ -23,5 +23,20 @@
     "abort": {
       "reauth_successful": "Re-authentication was successful."
     }
+  },
+  "entity": {
+    "number": {
+      "temperature_offset": {
+        "name": "Temperature offset"
+      }
+    }
+  },
+  "exceptions": {
+    "unsupported_aircon_setting": {
+      "message": "This setting is not supported in the current air conditioner mode."
+    },
+    "invalid_aircon_response": {
+      "message": "Nature Remo returned an invalid air conditioner response."
+    }
   }
 }

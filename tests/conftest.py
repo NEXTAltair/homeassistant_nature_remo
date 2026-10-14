@@ -62,14 +62,23 @@ def make_meter(values: dict[int, Any]) -> dict[str, Any]:
 def make_aircon() -> dict[str, Any]:
     """An air conditioner shaped like the Hitachi rar-9b1 preset (trimmed)."""
     temps = [str(t / 2) for t in range(32, 65)]  # 16.0 ... 32.0
-    mode = {"temp": temps, "dir": ["1", "auto", "swing"], "dirh": ["1", "swing"], "vol": ["1", "auto"]}
+    mode = {"temp": temps, "dir": [str(i) for i in range(1, 8)] + ["auto", "swing"],
+            "dirh": [str(i) for i in range(1, 10)] + ["swing"],
+            "vol": [str(i) for i in range(1, 6)] + ["auto"]}
+    offsets = [f"{i / 2:g}" for i in range(-6, 7)]
+    modes = {
+        "cool": mode, "warm": mode,
+        "auto": {**mode, "temp": offsets, "vol": ["1", "2", "auto"]},
+        "dry": {**mode, "temp": offsets},
+        "blow": {**mode, "temp": [""], "vol": [str(i) for i in range(1, 6)]},
+    }
     return {
         "id": "aircon-1",
         "type": "AC",
         "nickname": "Aircon",
         "device": {"id": "device-1", "name": "Remo", "firmware_version": "Remo/1.0"},
         "aircon": {
-            "range": {"modes": {"cool": mode, "warm": mode}, "fixedButtons": ["power-off"]},
+            "range": {"modes": modes, "fixedButtons": ["power-off"]},
             "tempUnit": "c",
         },
         "settings": {
