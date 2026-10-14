@@ -1,8 +1,8 @@
 """TV のプリセットと学習信号。 / Preset and learned TV commands."""
 
-import asyncio
+from asyncio import Lock, sleep
 
-from homeassistant.components.remote import RemoteEntity
+from homeassistant.components.remote import DEFAULT_DELAY_SECS, DEFAULT_NUM_REPEATS, RemoteEntity
 from homeassistant.exceptions import HomeAssistantError, ServiceValidationError
 from homeassistant.helpers.update_coordinator import CoordinatorEntity
 
@@ -25,7 +25,7 @@ class NatureRemoTVRemote(CoordinatorEntity[NatureRemoCoordinator], RemoteEntity)
         self._appliance_id = appliance["id"]
         self._attr_unique_id = f"nature_remo_remote_{self._appliance_id}"
         self._attr_device_info = appliance_device_info(appliance)
-        self._lock = asyncio.Lock()
+        self._lock = Lock()
 
     @property
     def appliance(self):
@@ -94,10 +94,10 @@ class NatureRemoTVRemote(CoordinatorEntity[NatureRemoCoordinator], RemoteEntity)
             command = [command]
         async with self._lock:
             commands = [self._resolve(value) for value in command]
-            pending = commands * kwargs.get("num_repeats", 1)
+            pending = commands * kwargs.get("num_repeats", DEFAULT_NUM_REPEATS)
             for index, (kind, value) in enumerate(pending):
-                if index and (delay := kwargs.get("delay_secs", 0)) > 0:
-                    await asyncio.sleep(delay)
+                if index and (delay := kwargs.get("delay_secs", DEFAULT_DELAY_SECS)) > 0:
+                    await sleep(delay)
                 await self._send(kind, value)
 
     async def _send_power(self, turn_on):

@@ -1,6 +1,7 @@
 """TV remote のサービス経由テスト。 / Service-level tests for TV remotes."""
 
 from copy import deepcopy
+from unittest.mock import AsyncMock, call as mock_call, patch
 
 import pytest
 from homeassistant.const import STATE_UNKNOWN, STATE_UNAVAILABLE
@@ -177,3 +178,17 @@ async def test_command_sequence_repeats(hass, aioclient_mock, config_entry):
     assert [call[2] for call in aioclient_mock.mock_calls[2:]] == [
         {"button": "mute"}, {"button": "vol-up"}, {"button": "mute"}, {"button": "vol-up"},
     ]
+
+
+@pytest.mark.parametrize(("options", "expected_delay"), [
+    ({}, 0.4), ({"delay_secs": 0.2}, 0.2), ({"delay_secs": 0}, None),
+])
+async def test_sequence_uses_default_or_explicit_delay(hass, aioclient_mock, config_entry, options, expected_delay):
+    """省略時は HA 標準の間隔、指定時はその値を使う。 / Honor the HA default or explicit delay."""
+    mock_api(aioclient_mock, appliances=[make_tv()])
+    await setup(hass, config_entry)
+    aioclient_mock.post(URL, json={"input": "t"})
+    with patch("custom_components.nature_remo.tv_remote.sleep", new_callable=AsyncMock) as delay:
+        await call(hass, command=["mute", "vol-up"], num_repeats=2, **options)
+    assert delay.await_args_list == ([mock_call(expected_delay)] * 3 if expected_delay else [])
+    assert aioclient_mock.call_count == 6
