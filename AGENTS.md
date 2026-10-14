@@ -14,7 +14,7 @@ This repository is the fork `NEXTAltair/homeassistant_nature_remo` of `NaNaLinks
   - `api.py` handles cloud requests and parses smart meter values.
   - `coordinator.py` manages polling.
   - `config_flow.py` and `options_flow.py` handle configuration.
-- `climate.py`, `light.py`, `sensor.py`, `remote.py`, `number.py` and `binary_sensor.py` are the entity platforms in that package.
+- `climate.py`, `light.py`, `sensor.py`, `remote.py`, `number.py`, `binary_sensor.py` and `button.py` are the entity platforms in that package.
 - `translations/`, `services.yaml` and `manifest.json` hold localized text, service definitions and integration metadata.
 - `tests/` has the API, coordinator and config flow tests. Shared fixtures live in `conftest.py`.
 - `README.md` (English) and `README_ja.md` (Japanese) mirror each other section by section. Update both for user-facing changes.
@@ -43,7 +43,7 @@ The final check is loading the integration in a real Home Assistant instance:
 1. Creates `NatureRemoAPI(entry.data["api_key"], async_get_clientsession(hass))` and a `NatureRemoCoordinator`.
 2. Stores both in `hass.data[DOMAIN][entry.entry_id] = {"coordinator", "api"}`.
 3. Registers the `nature_remo.send_light_mode` service.
-4. Sets up `sensor` first so external relays are ready, then forwards to `climate`, `light`, `remote`, `number` and `binary_sensor`.
+4. Sets up `sensor` first so external relays are ready, then forwards to `climate`, `light`, `remote`, `number`, `binary_sensor` and `button`.
 
 **The coordinator does two things per poll** (`coordinator.py:_async_update_data`). The interval comes from `entry.options["update_interval"]` and defaults to 60 s. It calls `GET /devices` and `GET /appliances`, then:
 - returns `coordinator.data` = `{appliance_id: raw appliance JSON}`. Climate and light read their live state (`settings`, `aircon.range.modes`, `light.state`) from here.
@@ -68,7 +68,7 @@ Entities are created only once, at platform setup, from those dicts. Newly added
 - **`light.py`** subclass plain `ClimateEntity` / `LightEntity`.
   - They hold private `_state` fields and subscribe manually via `coordinator.async_add_listener(self.update_status)` in `async_added_to_hass`.
   - After a command succeeds, they set state from the API response.
-- **`climate.py` / `number.py` / `sensor.py` / `remote.py` / `binary_sensor.py`** use `CoordinatorEntity` and read from the coordinator dicts in properties.
+- **`climate.py` / `number.py` / `sensor.py` / `remote.py` / `binary_sensor.py` / `button.py`** use `CoordinatorEntity` and read from the coordinator dicts in properties.
   - Motion is registered by the `binary_sensor` platform. `migration.py` transfers old sensor-domain registry entries before platform setup, preserving object IDs and user settings, and creates a persistent, dismissible repair with the ID mapping.
   - Last motion remains a sensor with `SensorDeviceClass.TIMESTAMP` and a timezone-aware datetime value.
   - Motion is "on" if the last `mo` event was within 5 minutes.
@@ -107,6 +107,11 @@ Entities are created only once, at platform setup, from those dicts. Newly added
 - The `send_light_mode` service handler in `__init__.py` looks them up there and validates against the light's button names (`_supported_effects`).
 - It then mutates the entity's private state directly.
 
+**Signal buttons:**
+- Each signal on any appliance creates a button named after the signal, attached to its appliance device.
+- Pressing calls `POST /signals/{id}/send`; API errors propagate to the caller without changing appliance state. Removed signals become unavailable through the existing coordinator.
+- Existing remote entities remain available for compatibility. New signals need an integration reload.
+
 **Remote:**
 - Commands map case-insensitively to signal names from the Remo app.
 - Signals named `on`/`オン` and `off`/`オフ` back `turn_on`/`turn_off`.
@@ -132,6 +137,7 @@ Entities are created only once, at platform setup, from those dicts. Newly added
   - `nature_remo_temperature_offset_{appliance_id}`
   - `nature_remo_light_{appliance_id}`
   - `nature_remo_remote_{appliance_id}`
+  - `nature_remo_signal_{signal_id}`
   - `nature_remo_sensor_{id}_{key}`
   - `{device_id}_motion`
   - `{device_id}_last_motion`

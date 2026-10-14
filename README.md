@@ -22,6 +22,7 @@ Please use this integration **at your own risk**.
 - Access smart meter data (consumption, generation, instant power) via Nature Remo E / E Lite
 - Control lighting modes using custom service calls
 - Send IR commands using remote entities created from defined signals
+- Press learned IR signals from dashboard buttons
 
 ---
 
@@ -84,6 +85,7 @@ Setting a very short update interval may cause the integration to reach the API 
 | light   | Control lights (on/off, mode selection)                            |
 | sensor  | Temperature, humidity, illuminance, last motion timestamp, power (buy/sell), external sensor relays |
 | remote  | Send infrared signals defined as "signals" for IR/AC/LIGHT types  |
+| button | Send each learned signal on any appliance |
 
 *Additional entities may be supported in future updates.*
 
@@ -106,6 +108,14 @@ Air conditioners use the v2 API and expose fan speed, vertical swing and horizon
 - Turning on an air conditioner that is off always starts **Auto** mode. Calling turn on while it is running does nothing. Models without Auto do not offer turn on; choose a supported HVAC mode instead.
 - Auto and Dry modes with relative temperatures expose a **Temperature offset** number (-3 to +3, step 0.5). It is unavailable in other modes or while off. The climate entity does not display an absolute target temperature in these modes.
 - The last confirmed offset is reused when starting Auto. Commands update both entities only after a successful response.
+
+---
+
+## Learned Signal Buttons
+
+Each signal registered in the Remo app creates a button with the signal name on its appliance device, including IR, AC, LIGHT and TV appliances. Press it from a dashboard or with `button.press`. Existing remote entities continue to work. Reload the integration after adding signals.
+
+Special AC operations such as internal cleaning can be used by learning the operation as a signal in the Remo app. API `extras` are not exposed as entities. Send failures appear as Home Assistant errors.
 
 ---
 
