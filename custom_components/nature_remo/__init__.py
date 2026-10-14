@@ -3,6 +3,7 @@ import logging
 
 from homeassistant.config_entries import ConfigEntry
 from homeassistant.core import HomeAssistant, ServiceCall
+from homeassistant.helpers.aiohttp_client import async_get_clientsession
 from .api import NatureRemoAPI
 from .coordinator import NatureRemoCoordinator
 from .const import DOMAIN
@@ -24,11 +25,11 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
     hass.data.setdefault(DOMAIN, {})
 
     # APIラッパーの初期化 / Initialize the Nature Remo API wrapper
-    api = NatureRemoAPI(entry.data["api_key"])
+    api = NatureRemoAPI(entry.data["api_key"], async_get_clientsession(hass))
 
     # Coordinator作成 / Create the coordinator
     update_interval = entry.options.get("update_interval", 60)
-    coordinator = NatureRemoCoordinator(hass, api, update_interval)
+    coordinator = NatureRemoCoordinator(hass, entry, api, update_interval)
     await coordinator.async_config_entry_first_refresh()
 
     # coordinator, apiをhassのデータ管理下に置く / Store coordinator, api in hass data for access in platforms

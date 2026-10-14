@@ -1,10 +1,93 @@
 import logging
+import time
 import aiohttp
 
 from datetime import datetime
+from decimal import Decimal
+
+from homeassistant.exceptions import HomeAssistantError
 
 _LOGGER = logging.getLogger(__name__)
 NATURE_REMO_URL = "https://api.nature.global/1"
+REQUEST_TIMEOUT = aiohttp.ClientTimeout(total=30)
+
+# 低圧スマート電力量メータ（ECHONET Lite クラス 0x0288）のプロパティ
+# Properties of the low-voltage smart electric energy meter (ECHONET Lite class 0x0288)
+EPC_COEFFICIENT = 0xD3  # 係数 / coefficient
+EPC_CUMULATIVE_BUY = 0xE0  # 積算電力量計測値（正方向） / cumulative energy, normal direction
+EPC_CUMULATIVE_UNIT = 0xE1  # 積算電力量単位 / cumulative energy unit
+EPC_CUMULATIVE_SELL = 0xE3  # 積算電力量計測値（逆方向） / cumulative energy, reverse direction
+EPC_INSTANT_POWER = 0xE7  # 瞬時電力計測値（W） / instantaneous power (W)
+
+# 規格上の有効範囲. 範囲外（0xFFFFFFFE=計測値なし など）は欠測として扱う
+# Valid ranges from the spec. Anything outside (e.g. 0xFFFFFFFE = no measurement) is missing
+CUMULATIVE_RANGE = (0, 99_999_999)  # 0x00000000–0x05F5E0FF
+INSTANT_POWER_RANGE = (-2_147_483_647, 2_147_483_645)  # 0x80000001–0x7FFFFFFD
+COEFFICIENT_RANGE = (1, 999_999)  # 0x00000001–0x000F423F
+
+# 積算電力量単位（0xE1）→ kWh への倍率 / Cumulative energy unit (0xE1) -> kWh multiplier
+UNIT_TABLE = {
+    0x00: Decimal("1"),
+    0x01: Decimal("0.1"),
+    0x02: Decimal("0.01"),
+    0x03: Decimal("0.001"),
+    0x04: Decimal("0.0001"),
+    0x0A: Decimal("10"),
+    0x0B: Decimal("100"),
+    0x0C: Decimal("1000"),
+    0x0D: Decimal("10000"),
+}
+
+
+class NatureRemoError(HomeAssistantError):
+    """
+    Nature Remo APIの呼び出しに失敗した.
+    A Nature Remo API call failed.
+    """
+
+
+class NatureRemoAuthError(NatureRemoError):
+    """
+    アクセストークンが拒否された（無効・失効）.
+    The access token was rejected (invalid or revoked).
+    """
+
+
+class NatureRemoRateLimitError(NatureRemoError):
+    """
+    APIの回数制限に達した. retry_afterは制限が解除されるまでの秒数（不明ならNone）.
+    The API rate limit was reached. retry_after is the seconds until it resets (None if unknown).
+    """
+
+    def __init__(self, message: str, retry_after: float | None) -> None:
+        super().__init__(message)
+        self.retry_after = retry_after
+
+
+def _log_rate_limit(headers) -> float | None:
+    """
+    レート制限系のヘッダをログ出力し、リセット時刻（epoch秒）を返す. ヘッダが無ければNone.
+    Log the rate limit headers and return the reset time (epoch seconds), or None if absent.
+    """
+    try:
+        reset_at = float(headers["X-Rate-Limit-Reset"])
+    except (KeyError, TypeError, ValueError):
+        reset_at = None
+
+    _LOGGER.debug(
+        "NatureRemo RateLimit → Limit: %s, Remaining: %s, Reset: %s",
+        headers.get("X-Rate-Limit-Limit"),
+        headers.get("X-Rate-Limit-Remaining"),
+        datetime.fromtimestamp(reset_at) if reset_at is not None else None,
+    )
+    return reset_at
+
+
+def _in_range(value: int | None, bounds: tuple[int, int]) -> int | None:
+    """範囲内の値だけを返す. / Return the value only if it lies within bounds."""
+    if value is None or not bounds[0] <= value <= bounds[1]:
+        return None
+    return value
 
 
 class NatureRemoAPI:
@@ -13,58 +96,67 @@ class NatureRemoAPI:
     Class to handle Nature Remo API communication.
     """
 
-    def __init__(self, token) -> None:
+    def __init__(self, token, session: aiohttp.ClientSession) -> None:
         """
-        Nature Remo APIの初期化.
-        Initialize the Nature Remo API.
+        Nature Remo APIの初期化. sessionはHomeAssistantの共有セッションを渡す.
+        Initialize the Nature Remo API with Home Assistant's shared session.
         """
         self._token = token
+        self._session = session
 
-    async def _get(self, path: str):
+    async def _request(self, method: str, path: str, data=None):
         """
-        Nature RemoのAPI GETリクエスト用の内部メソッド.
-        Internal method to perform GET requests to the Nature Remo API.
+        Nature Remo APIへリクエストを送り、レスポンスのJSONを返す. 失敗時は例外を送出する.
+        Send a request to the Nature Remo API and return the JSON body; raise on failure.
         """
         headers = {"Authorization": f"Bearer {self._token}"}
         url = f"{NATURE_REMO_URL}{path}"
-        async with (
-            aiohttp.ClientSession() as session,
-            session.get(url, headers=headers) as response,
-        ):
+        async with self._session.request(
+            method, url, headers=headers, data=data, timeout=REQUEST_TIMEOUT
+        ) as response:
+            reset_at = _log_rate_limit(response.headers)
+
+            if response.status in (401, 403):
+                raise NatureRemoAuthError(
+                    f"Nature Remo API rejected the access token ({response.status})"
+                )
+
             if response.status == 429:
                 _LOGGER.warning("API制限に達しました! 429 Too Many Requests.")
+                retry_after = (
+                    max(reset_at - time.time(), 1) if reset_at is not None else None
+                )
+                raise NatureRemoRateLimitError(
+                    "Nature Remo API rate limit reached", retry_after
+                )
 
-            # レート制限系のヘッダを取得・ログ出力
-            rate_limit = response.headers.get("X-Rate-Limit-Limit")
-            rate_remaining = response.headers.get("X-Rate-Limit-Remaining")
-            rate_reset = response.headers.get("X-Rate-Limit-Reset")
-            # rate_resetを読める時間に変換する
-            reset_time = datetime.fromtimestamp(int(rate_reset))
+            if response.status != 200:
+                error_text = await response.text()
+                raise NatureRemoError(
+                    f"Nature Remo API Error: {response.status} - {error_text[:200]}"
+                )
 
-            # デバッグログにリクエスト情報を出力する
-            _LOGGER.debug(
-                f"NatureRemo RateLimit → Limit: {rate_limit}, Remaining: {rate_remaining}, Reset: {reset_time}"
-            )
-
-            if response.status == 200:
+            try:
                 return await response.json()
-
-            _LOGGER.error("Failed to fetch request: %s", response.status)
-            return None
+            except ValueError as err:
+                # aiohttp.ContentTypeError / json.JSONDecodeError
+                raise NatureRemoError(
+                    f"Nature Remo API returned invalid JSON: {err}"
+                ) from err
 
     async def get_appliances(self):
         """
         Nature Remo API からすべての家電情報を取得.
         Fetch all appliance information from the Nature Remo API.
         """
-        return await self._get("/appliances")
+        return await self._request("GET", "/appliances")
 
     async def get_devices(self):
         """
         Nature Remoのデバイス一覧を取得（温湿度センサー含む）.
         Retrieve the list of devices from Nature Remo, including temperature and humidity sensors.
         """
-        return await self._get("/devices")
+        return await self._request("GET", "/devices")
 
     async def send_command_climate(self, payload, appliance_id):
         """
@@ -72,37 +164,11 @@ class NatureRemoAPI:
         Control the air conditioner using the Nature Remo API.
         """
         _LOGGER.info("Setting payload: %s", payload)
-        headers = {"Authorization": f"Bearer {self._token}"}
-        api_url = f"{NATURE_REMO_URL}/appliances/{appliance_id}/aircon_settings"
-
-        async with (
-            aiohttp.ClientSession() as session,
-            session.post(api_url, headers=headers, data=payload) as response,
-        ):
-            # レート制限系のヘッダを取得・ログ出力
-            rate_limit = response.headers.get("X-Rate-Limit-Limit")
-            rate_remaining = response.headers.get("X-Rate-Limit-Remaining")
-            rate_reset = datetime.fromtimestamp(
-                int(response.headers.get("X-Rate-Limit-Reset"))
-            )
-
-            # デバッグログにリクエスト情報を出力
-            _LOGGER.debug(
-                f"NatureRemo RateLimit → Limit: {rate_limit}, Remaining: {rate_remaining}, Reset: {rate_reset}"
-            )
-
-            response_json = await response.json()
-            if response.status == 200:
-                _LOGGER.info(
-                    "エアコンの操作に成功しました: %s",
-                    response_json,
-                )
-            else:
-                _LOGGER.error(
-                    "エアコンの操作に失敗しました: %s",
-                    await response.text(),
-                )
-            return response_json
+        response_json = await self._request(
+            "POST", f"/appliances/{appliance_id}/aircon_settings", data=payload
+        )
+        _LOGGER.info("エアコンの操作に成功しました: %s", response_json)
+        return response_json
 
     async def send_light_command(self, appliance_id: str, command: str):
         """
@@ -110,94 +176,59 @@ class NatureRemoAPI:
         Send ON/OFF commands to Nature Remo Light.
         """
         _LOGGER.info(f"Send Light applicance_id:{appliance_id} command:{command}")
-        url = f"{NATURE_REMO_URL}/appliances/{appliance_id}/light"
+        response_json = await self._request(
+            "POST", f"/appliances/{appliance_id}/light", data={"button": command}
+        )
+        _LOGGER.info("照明の操作に成功しました： %s", response_json)
+        return response_json
 
-        headers = {"Authorization": f"Bearer {self._token}"}
-        payload = {"button": command}
-
-        async with (
-            aiohttp.ClientSession() as session,
-            session.post(url, headers=headers, data=payload) as response,
-        ):
-            # レート制限系のヘッダを取得・ログ出力！
-            rate_limit = response.headers.get("X-Rate-Limit-Limit")
-            rate_remaining = response.headers.get("X-Rate-Limit-Remaining")
-            rate_reset = datetime.fromtimestamp(
-                int(response.headers.get("X-Rate-Limit-Reset"))
-            )
-
-            # デバッグログにリクエスト情報を出力
-            _LOGGER.debug(
-                f"NatureRemo RateLimit → Limit: {rate_limit}, Remaining: {rate_remaining}, Reset: {rate_reset}"
-            )
-
-            response_json = await response.json()
-            if response.status == 200:
-                _LOGGER.info("照明の操作に成功しました： %s", response_json)
-            else:
-                error_text = await response.text()
-                _LOGGER.error(
-                    f"Nature Remo API Error: {response.status} - {error_text}"
-                )
-            return response_json
-
-    def parse_smart_meter_properties(self, properties: list[dict]) -> dict:
+    def parse_smart_meter_properties(self, properties: list[dict] | None) -> dict:
         """
         Nature Remo E / E Liteのechonetlite_propertiesを元に買電・売電・瞬時電力をパースして返却する.
+        欠測・不正な値はNone（HAではunknown）とし、0で埋めない.
         Parse echonetlite_properties from Nature Remo E / E Lite to extract buy/sell power and instantaneous power.
+        Missing or invalid values become None (unknown in HA) and are never replaced with 0.
         """
-        # 値が欠損している場合にも備え、各種初期値を定義
-        coefficient = 1
-        unit_power = 0
-        buy_power_raw = 0
-        sold_power_raw = 0
-        instant_power = 0
-
-        for prop in properties:
-            epc = int(prop.get("epc"))
-            val_str = prop.get("val", "0")
-            try:
-                val = int(val_str)
-            except ValueError:
-                val = 0
-
-            # epc（Echonet Lite Property）に応じて各値を格納
-            if epc == 211:  # 係数
-                coefficient = val
-            elif epc == 215:  # 有効桁数（今回は使用せず）
+        # EPC → 値. 値が読めないものはNone（プロパティ自体が無いものはキー無し）
+        # EPC -> value. Unreadable values are None; absent properties have no key
+        raw: dict[int, int | None] = {}
+        for prop in properties or []:
+            if not isinstance(prop, dict):
                 continue
-            elif epc == 224:  # 積算買電量
-                buy_power_raw = val
-            elif epc == 225:  # 単位（指数）
-                unit_power = val
-            elif epc == 227:  # 積算売電量
-                sold_power_raw = val
-            elif epc == 231:  # 瞬時電力（W）
-                instant_power = val
+            try:
+                epc = int(prop["epc"])
+            except (KeyError, TypeError, ValueError):
+                continue
+            try:
+                raw[epc] = int(prop.get("val"))
+            except (TypeError, ValueError):
+                raw[epc] = None
 
-        # 単位変換テーブルを定義
-        unit_table = {
-            0x00: 1,
-            0x01: 0.1,
-            0x02: 0.01,
-            0x03: 0.001,
-            0x04: 0.0001,
-            0x0A: 10,
-            0x0B: 100,
-            0x0C: 1000,
-            0x0D: 10000,
-        }
+        # 係数プロパティが無い機器は規格上の既定値1を使う. あっても不正なら換算しない
+        # A meter without the coefficient uses the spec default 1; an invalid one blocks conversion
+        coefficient = _in_range(raw.get(EPC_COEFFICIENT, 1), COEFFICIENT_RANGE)
+        unit = UNIT_TABLE.get(raw.get(EPC_CUMULATIVE_UNIT))
+        factor = (
+            coefficient * unit if coefficient is not None and unit is not None else None
+        )
+        if factor is None:
+            _LOGGER.debug(
+                "スマートメーターの係数・単位が不正なため積算値を換算しません / "
+                "Invalid coefficient or unit, skipping cumulative energy: %s",
+                raw,
+            )
 
-        # 取得した値を変換
-        factor = coefficient * unit_table.get(unit_power, 1)
-        buy_power = buy_power_raw * factor
-        sold_power = sold_power_raw * factor
+        def to_kwh(epc: int) -> float | None:
+            value = _in_range(raw.get(epc), CUMULATIVE_RANGE)
+            if value is None or factor is None:
+                return None
+            return float(value * factor)
 
         # センサー用データとして返却
         return {
-            "buy_power": buy_power,
-            "sold_power": sold_power,
-            "instant_power": instant_power,
+            "buy_power": to_kwh(EPC_CUMULATIVE_BUY),
+            "sold_power": to_kwh(EPC_CUMULATIVE_SELL),
+            "instant_power": _in_range(raw.get(EPC_INSTANT_POWER), INSTANT_POWER_RANGE),
         }
 
     async def send_command_signal(self, signal_id: str) -> None:
@@ -205,12 +236,4 @@ class NatureRemoAPI:
         指定されたシグナルIDを使ってNature Remo APIを送信する.
         Send a signal by its ID using the Nature Remo API.
         """
-        api_url = f"{NATURE_REMO_URL}/signals/{signal_id}/send"
-        headers = {"Authorization": f"Bearer {self._token}"}
-
-        async with aiohttp.ClientSession() as session:
-            async with session.post(api_url, headers=headers) as response:
-                if response.status != 200:
-                    text = await response.text()
-                    _LOGGER.error("Failed to send signal %s: %s", signal_id, text)
-                    response.raise_for_status()
+        await self._request("POST", f"/signals/{signal_id}/send")
