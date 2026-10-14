@@ -45,6 +45,15 @@
     },
     "invalid_aircon_response": {
       "message": "Nature Remo からのエアコンの応答が不正です。"
+    },
+    "unknown_tv_command": {
+      "message": "不明なテレビのコマンドです: {command}。"
+    },
+    "unsupported_tv_power": {
+      "message": "このテレビには個別のオン・オフコマンドが揃っていません。電源を明示的に切り替えるには remote.send_command で power を送信してください。"
+    },
+    "invalid_tv_response": {
+      "message": "Nature Remo からテレビの不正な応答が返されました。"
     }
   },
   "issues": {

@@ -182,6 +182,12 @@ class NatureRemoAPI:
         _LOGGER.info("照明の操作に成功しました： %s", response_json)
         return response_json
 
+    async def send_tv_command(self, appliance_id: str, command: str):
+        """TV のプリセット信号を送信。 / Send a preset TV signal."""
+        return await self._request(
+            "POST", f"/appliances/{appliance_id}/tv", data={"button": command}
+        )
+
     def parse_smart_meter_properties(self, properties: list[dict] | None) -> dict:
         """
         Nature Remo E / E Liteのechonetlite_propertiesを元に買電・売電・瞬時電力をパースして返却する.

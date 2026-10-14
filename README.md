@@ -84,7 +84,7 @@ Setting a very short update interval may cause the integration to reach the API 
 | number  | Auto/Dry temperature offset for supported air conditioners         |
 | light   | Control lights (on/off, mode selection)                            |
 | sensor  | Temperature, humidity, illuminance, last motion timestamp, power (buy/sell), external sensor relays |
-| remote  | Send infrared signals defined as "signals" for IR/AC/LIGHT types  |
+| remote  | Send learned IR/AC/LIGHT signals and TV preset or learned commands |
 | button | Send each learned signal on any appliance |
 
 *Additional entities may be supported in future updates.*
@@ -134,6 +134,16 @@ target:
 data:
   command: "Power On"  # The name of the signal as defined in Remo
 ```
+
+---
+
+## TV Remotes
+
+Every TV registered in Remo gets a remote entity, even without learned signals. Use `remote.send_command` with a preset button name (such as `vol-up`), its label, or a learned signal name; matching ignores letter case. Unknown commands return an error. The `input` attribute shows the API state and updates from successful command responses and normal polling.
+
+Only TVs with both `power-on` and `power-off` support `remote.turn_on` / `remote.turn_off`. HA cannot hide those shared remote actions for individual TVs: on toggle-only models, they return an unsupported error without sending. To explicitly toggle power, send `power` with `remote.send_command`. Power starts unknown; after a discrete send, the displayed state is assumed, since infrared cannot confirm the TV's physical state.
+
+TV behavior is covered by mocked tests; the previously used REGZA 32ZP2 is no longer available for hardware verification. TV is provided as remote, without media_player features.
 
 ---
 

@@ -14,6 +14,7 @@ from .api import NatureRemoAPI
 from .const import DOMAIN
 from .device import appliance_device_info
 from .coordinator import NatureRemoCoordinator
+from .tv_remote import NatureRemoTVRemote
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -38,6 +39,11 @@ async def async_setup_entry(
         )
         for remote_info in coordinator.ir_remotes.values()
     ]
+    entities.extend(
+        NatureRemoTVRemote(coordinator, appliance)
+        for appliance in coordinator.data.values()
+        if appliance.get("type") == "TV"
+    )
 
     async_add_entities(entities)
 

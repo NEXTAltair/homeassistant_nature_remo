@@ -45,6 +45,15 @@
     },
     "invalid_aircon_response": {
       "message": "Nature Remo returned an invalid air conditioner response."
+    },
+    "unknown_tv_command": {
+      "message": "Unknown TV command: {command}."
+    },
+    "unsupported_tv_power": {
+      "message": "This TV does not provide both separate power-on and power-off commands. Use remote.send_command with power to send a toggle explicitly."
+    },
+    "invalid_tv_response": {
+      "message": "Nature Remo returned an invalid TV response."
     }
   },
   "issues": {
