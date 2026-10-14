@@ -29,6 +29,14 @@
       "temperature_offset": {
         "name": "Temperature offset"
       }
+    },
+    "sensor": {
+      "external_temperature": {
+        "name": "External temperature"
+      },
+      "external_humidity": {
+        "name": "External humidity"
+      }
     }
   },
   "exceptions": {

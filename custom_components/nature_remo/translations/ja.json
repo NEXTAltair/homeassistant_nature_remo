@@ -29,6 +29,14 @@
       "temperature_offset": {
         "name": "温度補正"
       }
+    },
+    "sensor": {
+      "external_temperature": {
+        "name": "外部温度"
+      },
+      "external_humidity": {
+        "name": "外部湿度"
+      }
     }
   },
   "exceptions": {
