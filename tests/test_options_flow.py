@@ -120,3 +120,21 @@ async def test_interval_only_preserves_device_options(hass, aioclient_mock, conf
     assert result["type"] is FlowResultType.CREATE_ENTRY
     assert config_entry.options["external_temperature_device-1"] == "sensor.keep"
     assert config_entry.options["update_interval"] == 30
+
+
+@pytest.mark.parametrize("token", ["replacement-token", "token"])
+async def test_loaded_entry_reauth_reloads_only_once(hass, aioclient_mock, config_entry, caplog, token):
+    """再認証で二重取得しない。 / Reauthentication must not trigger a duplicate refresh."""
+    await start(hass, aioclient_mock, config_entry)
+    initial_requests = aioclient_mock.call_count
+    flow = await config_entry.start_reauth_flow(hass)
+    with patch.object(hass.config_entries, "async_reload", wraps=hass.config_entries.async_reload) as reload:
+        result = await hass.config_entries.flow.async_configure(flow["flow_id"], {"api_key": token})
+        await hass.async_block_till_done()
+        reload.assert_awaited_once_with(config_entry.entry_id)
+    assert result["reason"] == "reauth_successful"
+    assert config_entry.data["api_key"] == token
+    assert not any(record.name == "homeassistant.helpers.frame" and record.levelno >= 30 for record in caplog.records)
+    # 検証の GET /devices と再読込の二つの GET だけ。
+    # Only the validation GET /devices and the two reload GETs.
+    assert aioclient_mock.call_count == initial_requests + 3
