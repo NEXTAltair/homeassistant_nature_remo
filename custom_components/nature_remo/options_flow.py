@@ -11,6 +11,7 @@ from homeassistant.helpers import selector
 
 from .const import DOMAIN
 from .device import remo_registry_devices
+from .external_sensor import external_relay_ids
 
 
 class NatureRemoOptionsFlowHandler(config_entries.OptionsFlow):
@@ -81,7 +82,10 @@ class NatureRemoOptionsFlowHandler(config_entries.OptionsFlow):
                 field = f"external_{kind}"
                 selected = values.get(field) if user_input is not None else self._options.get(f"{field}_{self._remo_id}")
                 fields[vol.Optional(field, description={"suggested_value": selected})] = selector.EntitySelector(
-                    selector.EntitySelectorConfig(domain="sensor", device_class=kind, multiple=False)
+                    selector.EntitySelectorConfig(
+                        domain="sensor", device_class=kind, multiple=False,
+                        exclude_entities=sorted(external_relay_ids(self.hass)),
+                    )
                 )
         return self.async_show_form(
             step_id="device",
@@ -92,6 +96,8 @@ class NatureRemoOptionsFlowHandler(config_entries.OptionsFlow):
 
     def _sensor_error(self, entity_id, kind):
         """存在・有限数値・単位を検証。 / Validate existence, a finite number and units."""
+        if entity_id in external_relay_ids(self.hass):
+            return "relay_source"
         state = self.hass.states.get(entity_id)
         if state is None:
             return "entity_not_found"

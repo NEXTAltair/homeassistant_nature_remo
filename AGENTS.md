@@ -90,7 +90,7 @@ Entities are created only once, at platform setup, from those dicts. Newly added
 **External sensors:**
 - `external_sensor.py` defines nonpolling relay sensors, one per configured type and AC, attached to the AC appliance device. The sensor platform stores instances in `hass.data[DOMAIN][entry_id]["external_sensors"][appliance_id][kind]`.
 - Relays subscribe to source state events on addition and unsubscribe on removal. They copy finite values, device/state classes and native units; missing or nonnumeric sources become unavailable. Source units are suggested initially, and HA retains control over display unit preferences.
-- Source options use the existing Remo hardware ID keys; multiple ACs on one hardware receive separate relays.
+- Source options use the existing Remo hardware ID keys; multiple ACs on one hardware receive separate relays. Nature Remo relays across all config entries are excluded as source options and rejected on submission; saved relay sources are skipped to prevent self-references and cycles.
 
 - `NatureRemoClimate` stores only `entry_id` and re-reads `entry.options` on each update.
 - If an external sensor entity is configured, its state overrides the Remo `te`/`hu` value.

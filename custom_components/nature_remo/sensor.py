@@ -3,7 +3,7 @@ from homeassistant.helpers.update_coordinator import CoordinatorEntity
 from .coordinator import NatureRemoCoordinator
 from .const import DOMAIN
 from .device import appliance_device_info, remo_device_info
-from .external_sensor import NatureRemoExternalSensor
+from .external_sensor import NatureRemoExternalSensor, external_relay_ids
 
 
 SENSOR_TYPES = {
@@ -62,9 +62,12 @@ async def async_setup_entry(hass, entry, async_add_entities):
     # 設定済みの外部センサーを各エアコンに中継する。
     # Relay configured external sensors on each air conditioner.
     external_sensors = {}
+    relay_ids = external_relay_ids(hass)
     for appliance_id, data in coordinator.aircons.items():
         for kind in ("temperature", "humidity"):
             if source_id := entry.options.get(f"external_{kind}_{data['device']['device_id']}"):
+                if source_id in relay_ids:
+                    continue
                 relay = NatureRemoExternalSensor(
                     coordinator.data[appliance_id], kind, source_id, hass.states.get(source_id)
                 )

@@ -3,6 +3,7 @@
 from copy import deepcopy
 
 import pytest
+from homeassistant.data_entry_flow import InvalidData
 from homeassistant.helpers import device_registry as dr, entity_registry as er
 from pytest_homeassistant_custom_component.common import MockConfigEntry
 
@@ -106,3 +107,45 @@ async def test_source_changes_metadata_removal_and_unload(hass, aioclient_mock):
     await hass.async_block_till_done()
     assert hass.states.get(entity_id).state == "unavailable"
     assert aioclient_mock.call_count == 2
+
+
+@pytest.mark.parametrize("kind", ["temperature", "humidity"])
+async def test_options_reject_own_and_other_relays(hass, aioclient_mock, kind):
+    """中継自身や別 AC の中継を選択できない。 / Reject self and other AC relay sources."""
+    attributes = TEMPERATURE_ATTRIBUTES if kind == "temperature" else HUMIDITY_ATTRIBUTES
+    hass.states.async_set("sensor.source", "25", attributes)
+    second = {**deepcopy(make_aircon()), "id": "aircon-2", "nickname": "Second AC"}
+    entry = await setup_external(hass, aioclient_mock, {f"external_{kind}_device-1": "sensor.source"}, [make_aircon(), second])
+    parent = dr.async_get(hass).async_get_device_by_identifier((DOMAIN, "device-1"), entry.entry_id)
+    for appliance_id in ("aircon-1", "aircon-2"):
+        source_id = relay_state(hass, kind, appliance_id).entity_id
+        flow = await hass.config_entries.options.async_init(entry.entry_id)
+        flow = await hass.config_entries.options.async_configure(flow["flow_id"], {"update_interval": 60, "device": parent.id})
+        fields = flow["data_schema"].schema["device"].schema.schema
+        assert source_id in fields[f"external_{kind}"].config["exclude_entities"]
+        with pytest.raises(InvalidData):
+            await hass.config_entries.options.async_configure(flow["flow_id"], {"device": {f"external_{kind}": source_id}})
+        # フォームを開いた後の改名も保存時の検証で拒否する。
+        # Also reject a relay renamed after the form's exclusions were generated.
+        renamed_id = f"sensor.renamed_{kind}_{appliance_id.replace('-', '_')}"
+        er.async_get(hass).async_update_entity(source_id, new_entity_id=renamed_id)
+        await hass.async_block_till_done()
+        result = await hass.config_entries.options.async_configure(flow["flow_id"], {"device": {f"external_{kind}": renamed_id}})
+        assert result["errors"] == {"device": f"{kind}_relay_source"}
+        assert entry.options[f"external_{kind}_device-1"] == "sensor.source"
+
+
+async def test_saved_relay_cycle_is_not_created(hass, aioclient_mock):
+    """保存済みの循環でも値を中継しない。 / Do not instantiate relays from a saved cycle."""
+    hass.states.async_set("sensor.source", "25", TEMPERATURE_ATTRIBUTES)
+    second = deepcopy(make_aircon())
+    second.update(id="aircon-2", nickname="Second AC")
+    second["device"]["id"] = "device-2"
+    entry = await setup_external(hass, aioclient_mock, {"external_temperature_device-1": "sensor.source", "external_temperature_device-2": "sensor.source"}, [make_aircon(), second])
+    first_id = relay_state(hass).entity_id
+    second_id = relay_state(hass, appliance_id="aircon-2").entity_id
+    hass.config_entries.async_update_entry(entry, options={"external_temperature_device-1": second_id, "external_temperature_device-2": first_id})
+    await hass.async_block_till_done()
+    assert hass.data[DOMAIN][entry.entry_id]["external_sensors"] == {}
+    assert hass.states.get(first_id).state == "unavailable"
+    assert hass.states.get(second_id).state == "unavailable"

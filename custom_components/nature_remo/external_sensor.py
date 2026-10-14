@@ -4,9 +4,27 @@ from math import isfinite
 
 from homeassistant.components.sensor import SensorEntity
 from homeassistant.core import callback
+from homeassistant.helpers import entity_registry as er
 from homeassistant.helpers.event import async_track_state_change_event
 
+from .const import DOMAIN
 from .device import appliance_device_info
+
+
+def external_relay_ids(hass):
+    """循環を防ぐため全エントリの中継 ID を集める。 / Collect relays across entries to prevent cycles."""
+    return {
+        entity_id for entity_id in er.async_get(hass).entities
+        if is_external_relay(hass, entity_id)
+    }
+
+
+def is_external_relay(hass, entity_id):
+    """中継かどうかをレジストリで確認。 / Identify a relay using the registry."""
+    entity = er.async_get(hass).async_get(entity_id)
+    return entity is not None and entity.platform == DOMAIN and entity.unique_id.startswith((
+        "nature_remo_external_temperature_", "nature_remo_external_humidity_"
+    ))
 
 
 class NatureRemoExternalSensor(SensorEntity):
@@ -53,12 +71,16 @@ class NatureRemoExternalSensor(SensorEntity):
     @callback
     def _source_changed(self, event):
         """元センサーの変更を即時反映。 / Immediately reflect source changes."""
-        self._read_source(event.data["new_state"])
+        state = None if is_external_relay(self.hass, self._source_entity_id) else event.data["new_state"]
+        self._read_source(state)
         self.async_write_ha_state()
 
     async def async_added_to_hass(self):
         """登録中だけ元センサーを監視。 / Track the source while the entity is registered."""
         await super().async_added_to_hass()
+        if is_external_relay(self.hass, self._source_entity_id):
+            self._read_source(None)
+            return
         self._read_source(self.hass.states.get(self._source_entity_id))
         self.async_on_remove(async_track_state_change_event(
             self.hass, [self._source_entity_id], self._source_changed

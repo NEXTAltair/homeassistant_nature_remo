@@ -151,6 +151,7 @@ Once configured, the selected external sensors will be used for:
 
 - If no external sensors are configured, the integration will continue to use the default values from Nature Remo
 - The selected entity must exist and have a finite numeric state. Temperature must use °C or °F, and humidity must use %.
+- Choose the original sensor as the source. Nature Remo relay sensors cannot be selected, to avoid self-references and cycles.
 - Existing external sensor selections are preserved when upgrading. Editing one Remo leaves other devices unchanged.
 
 ---
