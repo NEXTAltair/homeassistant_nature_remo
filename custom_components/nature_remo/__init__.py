@@ -1,5 +1,6 @@
 import logging
 
+from aiohttp import ClientError
 
 from homeassistant.config_entries import ConfigEntry, ConfigEntryState
 from homeassistant.core import HomeAssistant, ServiceCall, ServiceResponse, SupportsResponse
@@ -7,7 +8,8 @@ from homeassistant.exceptions import ConfigEntryNotReady, ServiceValidationError
 from homeassistant.helpers.aiohttp_client import async_get_clientsession
 from homeassistant.helpers import config_validation as cv, entity_registry as er
 from homeassistant.helpers.typing import ConfigType
-from .api import NatureRemoAPI
+from .api import NatureRemoAPI, NatureRemoError
+from .account import async_refresh_account_repairs, async_track_account
 from .aircon import AirconControl
 from .coordinator import NatureRemoCoordinator
 from .const import DOMAIN
@@ -83,6 +85,20 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
     update_interval = entry.options.get("update_interval", 60)
     coordinator = NatureRemoCoordinator(hass, entry, api, update_interval)
     await coordinator.async_config_entry_first_refresh()
+    if entry.unique_id is None:
+        try:
+            user_id = await api.get_user_id()
+        except (NatureRemoError, ClientError, TimeoutError):
+            # 任意の移行で起動や再認証を妨げない。応答本文やトークンは記録しない。
+            # Optional migration must not block setup or trigger reauth; omit response bodies and tokens.
+            _LOGGER.warning(
+                "アカウント ID の移行を次回起動時に再試行します / "
+                "Account identity migration will retry at the next setup"
+            )
+        else:
+            if hass.config_entries.async_entry_for_domain_unique_id(DOMAIN, user_id) is None:
+                hass.config_entries.async_update_entry(entry, unique_id=user_id)
+            async_track_account(hass, entry, user_id)
     echonetlite_coordinator = None
     if any(appliance.get("type") == WATER_HEATER_TYPE for appliance in coordinator.data.values()):
         echonetlite_coordinator = NatureRemoEchonetLiteCoordinator(hass, entry, coordinator)
@@ -149,3 +165,8 @@ async def async_unload_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
     if unload_ok:
         hass.data[DOMAIN].pop(entry.entry_id)
     return unload_ok
+
+
+async def async_remove_entry(hass: HomeAssistant, entry: ConfigEntry) -> None:
+    """残った entry で重複通知を更新。 / Refresh repairs using the remaining entries."""
+    async_refresh_account_repairs(hass)

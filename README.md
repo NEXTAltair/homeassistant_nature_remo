@@ -63,6 +63,8 @@ Click the button below to easily add this repository to HACS.
    - You can issue an API token at [Nature Official Site](https://home.nature.global)
 3. Your registered appliances will be automatically imported as entities
 
+Each Nature account can be registered only once, even with different access tokens. Re-authentication requires a token for the same account. Existing duplicate registrations appear under **Settings → System → Repairs**; keep one registration and delete the others. Nothing is deleted automatically.
+
 ---
 
 ## Options

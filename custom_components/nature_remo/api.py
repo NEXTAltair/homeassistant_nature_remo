@@ -144,6 +144,13 @@ class NatureRemoAPI:
                     f"Nature Remo API returned invalid JSON: {err}"
                 ) from err
 
+    async def get_user_id(self) -> str:
+        """トークンの所有者を検証。 / Validate the account owning the token."""
+        user = await self._request("GET", "/users/me")
+        if not isinstance(user, dict) or not isinstance(user.get("id"), str) or not user["id"].strip():
+            raise NatureRemoError("Nature Remo API returned an invalid user ID")
+        return user["id"]
+
     async def get_appliances(self):
         """
         Nature Remo API からすべての家電情報を取得.
