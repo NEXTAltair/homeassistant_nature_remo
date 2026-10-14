@@ -5,7 +5,7 @@ from .coordinator import NatureRemoCoordinator
 from .const import DOMAIN
 from .device import appliance_device_info, remo_device_info
 from .external_sensor import NatureRemoExternalSensor, external_relay_ids
-from .echonetlite import NatureRemoWaterHeaterEntity
+from .echonetlite import NatureRemoWaterHeaterEntity, async_setup_water_heater_entities
 
 
 WATER_HEATER_SENSORS = (
@@ -81,12 +81,10 @@ async def async_setup_entry(hass, entry, async_add_entities):
     ]
     entities = []
 
-    if echonetlite := hass.data[DOMAIN][entry.entry_id].get("echonetlite_coordinator"):
-        entities.extend(
-            NatureRemoWaterHeaterSensor(echonetlite, echonetlite.appliances[appliance_id], description)
-            for appliance_id, properties in echonetlite.data.items()
-            for description in WATER_HEATER_SENSORS if description.key in properties
-        )
+    async_setup_water_heater_entities(
+        entry, hass.data[DOMAIN][entry.entry_id].get("echonetlite_coordinator"),
+        WATER_HEATER_SENSORS, NatureRemoWaterHeaterSensor, async_add_entities,
+    )
 
     # 設定済みの外部センサーを各エアコンに中継する。
     # Relay configured external sensors on each air conditioner.

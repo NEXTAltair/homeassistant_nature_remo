@@ -5,7 +5,7 @@ from datetime import timedelta
 import time
 
 import pytest
-from homeassistant.config_entries import SOURCE_REAUTH
+from homeassistant.config_entries import SOURCE_REAUTH, ConfigEntryState
 from homeassistant.const import STATE_UNAVAILABLE, STATE_UNKNOWN
 from homeassistant.helpers import device_registry as dr, entity_registry as er
 from homeassistant.helpers.update_coordinator import UpdateFailed
@@ -17,7 +17,7 @@ from custom_components.nature_remo.const import DOMAIN
 from custom_components.nature_remo.echonetlite import parse_water_heater_properties
 from .conftest import (
     APPLIANCES_URL, DEVICES_URL, ECHONETLITE_URL, NORMAL_METER, NORMAL_WATER_HEATER,
-    make_device, make_echonetlite, make_meter, make_water_heater, mock_api,
+    make_aircon, make_device, make_echonetlite, make_meter, make_water_heater, mock_api,
 )
 from .test_coordinator import setup
 
@@ -256,3 +256,56 @@ async def test_entity_and_enum_translations_load(hass, aioclient_mock, config_en
     prefix = "component.nature_remo.entity.sensor.water_heater_bath_operation"
     assert translations[f"{prefix}.name"] == name
     assert translations[f"{prefix}.state.keeping_warm"] == state
+
+
+@pytest.mark.parametrize(("response", "status"), [({}, 503), ({"appliances": None}, 200)])
+async def test_initial_failure_does_not_block_normal_entities_and_recovers(hass, aioclient_mock, config_entry, freezer, response, status):
+    """追加取得が失敗しても通常機能を起動し最初の成功時に追加。 / Start normal entities and add heater entities on recovery."""
+    aioclient_mock.get(DEVICES_URL, json=[make_device()])
+    aioclient_mock.get(APPLIANCES_URL, json=[make_aircon(), make_water_heater()])
+    aioclient_mock.get(ECHONETLITE_URL, json=response, status=status)
+    await setup(hass, config_entry)
+    assert config_entry.state is ConfigEntryState.LOADED
+    coordinator = coordinator_of(hass, config_entry)
+    assert not coordinator.last_update_success
+    assert coordinator.data == {}
+    assert entity_id(hass, "85") is None
+    climate_id = er.async_get(hass).async_get_entity_id("climate", DOMAIN, "nature_remo_climate_aircon-1")
+    assert hass.states.get(climate_id).state == "cool"
+    mock_api(aioclient_mock, appliances=[make_aircon(), make_water_heater()], echonetlite=make_echonetlite())
+    freezer.tick(timedelta(seconds=301))
+    async_fire_time_changed(hass)
+    await hass.async_block_till_done()
+    assert hass.states.get(climate_id).state == "cool"
+    assert hass.states.get(entity_id(hass, "85")).state == "1234.567"
+    assert hass.states.get(entity_id(hass, "80")).state == "on"
+    assert all(entity_id(hass, epc) is not None for epc in NORMAL_WATER_HEATER)
+    assert sum(str(call[1]) == ECHONETLITE_URL for call in aioclient_mock.mock_calls) == 1
+    await coordinator.async_refresh()
+    await hass.async_block_till_done()
+    assert len([entry for entry in er.async_entries_for_config_entry(er.async_get(hass), config_entry.entry_id)
+                if entry.unique_id.startswith("nature_remo_water_heater_")]) == 9
+
+
+async def test_initial_auth_failure_still_starts_reauth(hass, aioclient_mock, config_entry):
+    """初回の認証失敗は隠さず再認証する。 / Do not suppress initial authentication failures."""
+    aioclient_mock.get(DEVICES_URL, json=[make_device()])
+    aioclient_mock.get(APPLIANCES_URL, json=[make_water_heater()])
+    aioclient_mock.get(ECHONETLITE_URL, status=401, json={})
+    await setup(hass, config_entry)
+    assert config_entry.state is ConfigEntryState.SETUP_ERROR
+    assert [flow["context"]["source"] for flow in hass.config_entries.flow.async_progress()] == [SOURCE_REAUTH]
+
+
+async def test_unload_after_initial_failure_removes_pending_discovery(hass, aioclient_mock, config_entry, freezer):
+    """初回取得を待つリスナーも解除。 / Remove discovery listeners while awaiting the first snapshot."""
+    mock_echonetlite(aioclient_mock, {}, status=503)
+    await setup(hass, config_entry)
+    coordinator = coordinator_of(hass, config_entry)
+    assert await hass.config_entries.async_unload(config_entry.entry_id)
+    count = aioclient_mock.call_count
+    freezer.tick(timedelta(seconds=301))
+    async_fire_time_changed(hass)
+    await hass.async_block_till_done()
+    assert aioclient_mock.call_count == count
+    assert not coordinator._listeners

@@ -7,7 +7,7 @@ from homeassistant.helpers.update_coordinator import CoordinatorEntity
 
 from .const import DOMAIN
 from .device import remo_device_info
-from .echonetlite import NatureRemoWaterHeaterEntity
+from .echonetlite import NatureRemoWaterHeaterEntity, async_setup_water_heater_entities
 
 WATER_HEATER_BINARY_SENSORS = (
     BinarySensorEntityDescription(key="80", translation_key="water_heater_running", device_class=BinarySensorDeviceClass.RUNNING),
@@ -25,12 +25,10 @@ async def async_setup_entry(hass, entry, async_add_entities):
         NatureRemoMotionBinarySensor(coordinator, device_id, data["name"], coordinator.devices[device_id])
         for device_id, data in coordinator.motion_sensors.items()
     )
-    if echonetlite := hass.data[DOMAIN][entry.entry_id].get("echonetlite_coordinator"):
-        async_add_entities(
-            NatureRemoWaterHeaterBinarySensor(echonetlite, echonetlite.appliances[appliance_id], description)
-            for appliance_id, properties in echonetlite.data.items()
-            for description in WATER_HEATER_BINARY_SENSORS if description.key in properties
-        )
+    async_setup_water_heater_entities(
+        entry, hass.data[DOMAIN][entry.entry_id].get("echonetlite_coordinator"),
+        WATER_HEATER_BINARY_SENSORS, NatureRemoWaterHeaterBinarySensor, async_add_entities,
+    )
 
 
 class NatureRemoWaterHeaterBinarySensor(NatureRemoWaterHeaterEntity, BinarySensorEntity):

@@ -3,6 +3,7 @@ import logging
 
 from homeassistant.config_entries import ConfigEntry
 from homeassistant.core import HomeAssistant, ServiceCall
+from homeassistant.exceptions import ConfigEntryNotReady
 from homeassistant.helpers.aiohttp_client import async_get_clientsession
 from .api import NatureRemoAPI
 from .aircon import AirconControl
@@ -38,7 +39,16 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
     echonetlite_coordinator = None
     if any(appliance.get("type") == WATER_HEATER_TYPE for appliance in coordinator.data.values()):
         echonetlite_coordinator = NatureRemoEchonetLiteCoordinator(hass, entry, coordinator)
-        await echonetlite_coordinator.async_config_entry_first_refresh()
+        try:
+            await echonetlite_coordinator.async_config_entry_first_refresh()
+        except ConfigEntryNotReady:
+            # 任意の追加取得の失敗で通常の家電を止めない。
+            # Do not block normal appliances on an optional endpoint failure.
+            echonetlite_coordinator.data = {}
+            _LOGGER.warning(
+                "エコキュートの初回取得を再試行します / Retrying initial water heater fetch: %s",
+                echonetlite_coordinator.last_exception,
+            )
         # センサーなしの本体や未対応 EPC のみでも取得を継続する。
         # Keep discovery and heater polling active even without supported sensor entities.
         entry.async_on_unload(coordinator.async_add_listener(lambda: None))

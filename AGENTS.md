@@ -127,8 +127,9 @@ Entities are created only once, at platform setup, from those dicts. Newly added
 **Water heaters (EcoCute):**
 - Setup creates `NatureRemoEchonetLiteCoordinator` only if the main snapshot contains `EL_ELECTRIC_WATER_HEATER`. It fetches `GET /echonetlite/appliances` separately every 300 seconds and skips the request if no heaters remain in the main snapshot.
 - The response wraps an `appliances` list. Both `epc` and `val` are hexadecimal strings; parsing is separate from decimal smart meter values. `Device` is uppercase here; device metadata comes from the main appliance snapshot.
-- EPC 80/b2/c0/c3/e3 provide binary states, 85 provides cumulative kWh (`total_increasing`), e1 provides stored liters (`measurement`), and b0/ea provide translated enums. Only supported EPCs present during setup create entities; additions require reload.
+- EPC 80/b2/c0/c3/e3 provide binary states, 85 provides cumulative kWh (`total_increasing`), e1 provides stored liters (`measurement`), and b0/ea provide translated enums. Only supported EPCs in the first successful snapshot create entities; later additions require reload.
 - Invalid codes, lengths, non-hex strings and out-of-range numbers become None. Legitimate zeros remain zero. Missing EPCs become unknown; failed or malformed polls preserve the prior snapshot and mark entities unavailable. Authentication starts reauth; rate limits honor reset times.
+- A non-authentication failure of the first optional fetch does not block normal platforms. The coordinator retains an unavailable empty snapshot and retries on its timer; sensor and binary_sensor subscribe until the first successful snapshot to create their entities without a reload. Initial authentication failures still start reauth.
 - Listener lifetimes belong to the config entry. Discovery and five-minute polling continue even when the heater has no supported EPC entities, and both stop on unload. No write controls or updated_at freshness checks are provided.
 
 **API client** (`api.py`):

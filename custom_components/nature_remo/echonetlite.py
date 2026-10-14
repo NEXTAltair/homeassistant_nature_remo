@@ -5,6 +5,7 @@ import logging
 import re
 
 from homeassistant.exceptions import ConfigEntryAuthFailed
+from homeassistant.core import callback
 from homeassistant.helpers.update_coordinator import CoordinatorEntity, DataUpdateCoordinator, UpdateFailed
 
 from .api import NatureRemoAuthError, NatureRemoError, NatureRemoRateLimitError
@@ -46,6 +47,41 @@ def parse_water_heater_properties(properties):
         else:
             result[epc] = EPC_CODES[epc].get(raw)
     return result
+
+
+@callback
+def async_setup_water_heater_entities(entry, coordinator, descriptions, entity_type, async_add_entities):
+    """最初の成功時にだけエンティティを追加。 / Add entities from the first successful snapshot."""
+    if coordinator is None:
+        return
+    unsubscribe = None
+
+    @callback
+    def async_remove_listener():
+        """復帰時とアンロード時に一度だけ解除。 / Unsubscribe once on recovery or unload."""
+        nonlocal unsubscribe
+        if unsubscribe is not None:
+            unsubscribe()
+            unsubscribe = None
+
+    @callback
+    def async_add_first_snapshot():
+        """初回失敗後も再読み込みなしで復帰。 / Recover from initial failure without reloading."""
+        if not coordinator.last_update_success:
+            return
+        appliances = coordinator.appliances
+        async_add_entities(
+            entity_type(coordinator, appliances[appliance_id], description)
+            for appliance_id, properties in coordinator.data.items() if appliance_id in appliances
+            for description in descriptions if description.key in properties
+        )
+        async_remove_listener()
+
+    if coordinator.last_update_success:
+        async_add_first_snapshot()
+    else:
+        unsubscribe = coordinator.async_add_listener(async_add_first_snapshot)
+        entry.async_on_unload(async_remove_listener)
 
 
 class NatureRemoEchonetLiteCoordinator(DataUpdateCoordinator):

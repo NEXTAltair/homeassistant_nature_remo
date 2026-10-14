@@ -156,7 +156,7 @@ Remo E water heaters (`EL_ELECTRIC_WATER_HEATER`) expose read-only sensors on th
 - Cumulative energy in kWh (`total_increasing`), suitable for the Energy dashboard
 - Remaining hot water in liters; water-heating mode and bath operation
 
-Only supported properties reported by the appliance create entities. Values are fetched by a separate five-minute poll, enabled only when a supported heater is present. Reload after adding a heater or new properties. Invalid or missing readings remain unknown; valid zero values are preserved. Failed polls keep the previous snapshot and mark entities unavailable until a successful poll. Property timestamps are not used to infer availability, and no heater controls are provided.
+Only supported properties in the first successful response create entities. Values are fetched by a separate five-minute poll, enabled only when a supported heater is present. Reload after adding a heater or new properties. Invalid or missing readings remain unknown; valid zero values are preserved. Failed polls keep the previous snapshot and mark entities unavailable until a successful poll. A temporary heater API failure during startup does not block other appliances; heater sensors appear automatically when the first fetch succeeds. Property timestamps are not used to infer availability, and no heater controls are provided.
 
 ---
 
