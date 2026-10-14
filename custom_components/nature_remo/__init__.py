@@ -10,6 +10,7 @@ from .coordinator import NatureRemoCoordinator
 from .const import DOMAIN
 from .migration import async_migrate_motion_entities
 from .device import async_register_devices
+from .echonetlite import NatureRemoEchonetLiteCoordinator, WATER_HEATER_TYPE
 
 _LOGGER = logging.getLogger(__name__)
 PLATFORMS = ["climate", "light", "sensor", "remote", "number", "binary_sensor", "button"]
@@ -34,6 +35,14 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
     update_interval = entry.options.get("update_interval", 60)
     coordinator = NatureRemoCoordinator(hass, entry, api, update_interval)
     await coordinator.async_config_entry_first_refresh()
+    echonetlite_coordinator = None
+    if any(appliance.get("type") == WATER_HEATER_TYPE for appliance in coordinator.data.values()):
+        echonetlite_coordinator = NatureRemoEchonetLiteCoordinator(hass, entry, coordinator)
+        await echonetlite_coordinator.async_config_entry_first_refresh()
+        # センサーなしの本体や未対応 EPC のみでも取得を継続する。
+        # Keep discovery and heater polling active even without supported sensor entities.
+        entry.async_on_unload(coordinator.async_add_listener(lambda: None))
+        entry.async_on_unload(echonetlite_coordinator.async_add_listener(lambda: None))
     async_register_devices(hass, entry, coordinator)
 
     # 両プラットフォームで設定を共有する。 / Share settings between both platforms.
@@ -49,6 +58,7 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
         "coordinator": coordinator,
         "api": api,
         "aircon_controls": aircon_controls,
+        "echonetlite_coordinator": echonetlite_coordinator,
     }
 
     # カスタムサービスの登録

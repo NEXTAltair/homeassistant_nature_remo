@@ -1,12 +1,21 @@
-"""人感センサー。 / Motion sensors."""
+"""人感とエコキュートの状態。 / Motion and water heater states."""
 
 from datetime import datetime, timezone, timedelta
 
-from homeassistant.components.binary_sensor import BinarySensorEntity
+from homeassistant.components.binary_sensor import BinarySensorDeviceClass, BinarySensorEntity, BinarySensorEntityDescription
 from homeassistant.helpers.update_coordinator import CoordinatorEntity
 
 from .const import DOMAIN
 from .device import remo_device_info
+from .echonetlite import NatureRemoWaterHeaterEntity
+
+WATER_HEATER_BINARY_SENSORS = (
+    BinarySensorEntityDescription(key="80", translation_key="water_heater_running", device_class=BinarySensorDeviceClass.RUNNING),
+    BinarySensorEntityDescription(key="b2", translation_key="water_heater_heating", device_class=BinarySensorDeviceClass.RUNNING),
+    BinarySensorEntityDescription(key="c0", translation_key="water_heater_daytime_heating_allowed"),
+    BinarySensorEntityDescription(key="c3", translation_key="water_heater_supplying", device_class=BinarySensorDeviceClass.RUNNING),
+    BinarySensorEntityDescription(key="e3", translation_key="water_heater_bath_auto"),
+)
 
 
 async def async_setup_entry(hass, entry, async_add_entities):
@@ -16,6 +25,21 @@ async def async_setup_entry(hass, entry, async_add_entities):
         NatureRemoMotionBinarySensor(coordinator, device_id, data["name"], coordinator.devices[device_id])
         for device_id, data in coordinator.motion_sensors.items()
     )
+    if echonetlite := hass.data[DOMAIN][entry.entry_id].get("echonetlite_coordinator"):
+        async_add_entities(
+            NatureRemoWaterHeaterBinarySensor(echonetlite, echonetlite.appliances[appliance_id], description)
+            for appliance_id, properties in echonetlite.data.items()
+            for description in WATER_HEATER_BINARY_SENSORS if description.key in properties
+        )
+
+
+class NatureRemoWaterHeaterBinarySensor(NatureRemoWaterHeaterEntity, BinarySensorEntity):
+    """エコキュートの状態を読み取る。 / Read water heater states."""
+
+    @property
+    def is_on(self):
+        """未定義コードは不明。 / Undefined codes are unknown."""
+        return self.value
 
 
 class NatureRemoMotionBinarySensor(CoordinatorEntity, BinarySensorEntity):

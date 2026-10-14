@@ -15,6 +15,9 @@ from custom_components.nature_remo.const import DOMAIN
 
 DEVICES_URL = f"{NATURE_REMO_URL}/devices"
 APPLIANCES_URL = f"{NATURE_REMO_URL}/appliances"
+ECHONETLITE_URL = f"{NATURE_REMO_URL}/echonetlite/appliances"
+NORMAL_WATER_HEATER = {"80": "30", "85": "0012d687", "b0": "41", "b2": "42", "c0": "41",
+                       "c3": "42", "e1": "0172", "e3": "41", "ea": "43"}
 
 # 実機の Remo E 応答（2026-10-14）と同じ形の ECHONET Lite プロパティ
 # ECHONET Lite properties shaped like a real Remo E response (2026-10-14)
@@ -100,6 +103,7 @@ def mock_api(
     appliances: Any = None,
     status: int = 200,
     headers: dict[str, str] | None = None,
+    echonetlite: Any = None,
 ) -> None:
     """Register GET /devices and GET /appliances responses (replacing earlier ones)."""
     aioclient_mock.clear_requests()
@@ -115,6 +119,9 @@ def mock_api(
         json=[] if appliances is None else appliances,
         headers=headers,
     )
+    if any(isinstance(appliance, dict) and appliance.get("type") == "EL_ELECTRIC_WATER_HEATER"
+           for appliance in appliances or []):
+        aioclient_mock.get(ECHONETLITE_URL, json=echonetlite if echonetlite is not None else {"appliances": []})
 
 
 def make_light() -> dict[str, Any]:
@@ -153,3 +160,21 @@ def make_tv() -> dict[str, Any]:
         },
         "signals": [{"id": "tv-signal-1", "name": "Learned HDMI"}],
     }
+
+
+def make_water_heater() -> dict[str, Any]:
+    """通常の一覧にある架空のエコキュート。 / Synthetic heater metadata from the normal endpoint."""
+    return {
+        "id": "heater-1", "type": "EL_ELECTRIC_WATER_HEATER", "nickname": "Water heater",
+        "device": make_device({}), "model": {"manufacturer": "Example", "name": "Heater 1"}, "signals": [],
+    }
+
+
+def make_echonetlite(properties: dict[str, Any] | None = None) -> dict[str, Any]:
+    """実応答の形だけを再現。 / Reproduce the response shape using synthetic data only."""
+    return {"appliances": [{
+        "id": "heater-1", "nickname": "Water heater", "type": "EL_ELECTRIC_WATER_HEATER",
+        "Device": make_device({}),
+        "properties": [{"epc": epc, "val": value, "updated_at": "2020-01-01T00:00:00Z"}
+                       for epc, value in (NORMAL_WATER_HEATER if properties is None else properties).items()],
+    }]}
