@@ -87,7 +87,11 @@ Entities are created only once, at platform setup, from those dicts. Newly added
 - The options update listener reloads the integration after saving and is removed on unload. No manual reload notification is posted.
 - `translations/{en,ja}.json` provide config and options fields, sections, errors, entity names and repairs.
 
-**External sensors (upstream Issue 4):**
+**External sensors:**
+- `external_sensor.py` defines nonpolling relay sensors, one per configured type and AC, attached to the AC appliance device. The sensor platform stores instances in `hass.data[DOMAIN][entry_id]["external_sensors"][appliance_id][kind]`.
+- Relays subscribe to source state events on addition and unsubscribe on removal. They copy finite values, device/state classes and native units; missing or nonnumeric sources become unavailable. Source units are suggested initially, and HA retains control over display unit preferences.
+- Source options use the existing Remo hardware ID keys; multiple ACs on one hardware receive separate relays. Nature Remo relays across all config entries are excluded as source options and rejected on submission; saved relay sources are skipped to prevent self-references and cycles.
+
 - `NatureRemoClimate` stores only `entry_id` and re-reads `entry.options` on each update.
 - If an external sensor entity is configured, its state overrides the Remo `te`/`hu` value.
 - `async_track_state_change_event` writes climate state when that sensor changes.
@@ -133,6 +137,8 @@ Entities are created only once, at platform setup, from those dicts. Newly added
   - `nature_remo_sensor_{id}_{key}`
   - `{device_id}_motion`
   - `{device_id}_last_motion`
+  - `nature_remo_external_temperature_{appliance_id}`
+  - `nature_remo_external_humidity_{appliance_id}`
 - User-visible text goes in both `translations/en.json` and `translations/ja.json`.
 - The Nature Remo Cloud API is rate-limited to 30 requests per 5 minutes per account. Avoid adding extra polling calls.
 

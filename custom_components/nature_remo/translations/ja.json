@@ -29,6 +29,14 @@
       "temperature_offset": {
         "name": "温度補正"
       }
+    },
+    "sensor": {
+      "external_temperature": {
+        "name": "外部温度"
+      },
+      "external_humidity": {
+        "name": "外部湿度"
+      }
     }
   },
   "exceptions": {
@@ -76,7 +84,9 @@
       "temperature_invalid_unit": "外部温度には°C または °F のセンサーを選択してください。",
       "humidity_entity_not_found": "選択した外部湿度センサーが存在しません。",
       "humidity_invalid_number": "外部湿度には有限の数値を持つセンサーを選択してください。",
-      "humidity_invalid_unit": "外部湿度には% のセンサーを選択してください。"
+      "humidity_invalid_unit": "外部湿度には% のセンサーを選択してください。",
+      "temperature_relay_source": "Nature Remo の中継センサーではなく、元のセンサーを選択してください。",
+      "humidity_relay_source": "Nature Remo の中継センサーではなく、元のセンサーを選択してください。"
     }
   }
 }

@@ -29,6 +29,14 @@
       "temperature_offset": {
         "name": "Temperature offset"
       }
+    },
+    "sensor": {
+      "external_temperature": {
+        "name": "External temperature"
+      },
+      "external_humidity": {
+        "name": "External humidity"
+      }
     }
   },
   "exceptions": {
@@ -76,7 +84,9 @@
       "temperature_invalid_unit": "The external temperature sensor must use °C or °F.",
       "humidity_entity_not_found": "The selected external humidity sensor does not exist.",
       "humidity_invalid_number": "The external humidity sensor must have a finite numeric value.",
-      "humidity_invalid_unit": "The external humidity sensor must use %."
+      "humidity_invalid_unit": "The external humidity sensor must use %.",
+      "temperature_relay_source": "Select the original sensor instead of a Nature Remo external sensor relay.",
+      "humidity_relay_source": "Select the original sensor instead of a Nature Remo external sensor relay."
     }
   }
 }

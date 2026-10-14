@@ -82,7 +82,7 @@ Setting a very short update interval may cause the integration to reach the API 
 | binary_sensor | Motion detection                                             |
 | number  | Auto/Dry temperature offset for supported air conditioners         |
 | light   | Control lights (on/off, mode selection)                            |
-| sensor  | Temperature, humidity, illuminance, last motion timestamp, power (buy/sell)      |
+| sensor  | Temperature, humidity, illuminance, last motion timestamp, power (buy/sell), external sensor relays |
 | remote  | Send infrared signals defined as "signals" for IR/AC/LIGHT types  |
 
 *Additional entities may be supported in future updates.*
@@ -140,6 +140,8 @@ By selecting entities from Home Assistant settings, the climate device will use 
 - Choose temperature and humidity sensor entities, or clear a selection to return to the built-in sensor
 - Save; changes are applied by an automatic reload
 
+Each configured air conditioner also gets an **External temperature** and/or **External humidity** sensor on its appliance device. These relay the source value, device class, state class and native unit without additional API calls. They update immediately when the source changes and become unavailable when it is missing or nonnumeric. The initial display unit follows the source; Home Assistant unit preferences can then override it.
+
 Once configured, the selected external sensors will be used for:
 
 - Displaying temperature and humidity in the climate entity
@@ -149,6 +151,7 @@ Once configured, the selected external sensors will be used for:
 
 - If no external sensors are configured, the integration will continue to use the default values from Nature Remo
 - The selected entity must exist and have a finite numeric state. Temperature must use °C or °F, and humidity must use %.
+- Choose the original sensor as the source. Nature Remo relay sensors cannot be selected, to avoid self-references and cycles.
 - Existing external sensor selections are preserved when upgrading. Editing one Remo leaves other devices unchanged.
 
 ---
