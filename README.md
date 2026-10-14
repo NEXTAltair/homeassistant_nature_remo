@@ -78,12 +78,21 @@ Setting a very short update interval may cause the integration to reach the API 
 | Type    | Description                                                        |
 |---------|--------------------------------------------------------------------|
 | climate | Control air conditioners (cooling, heating, dry)                   |
+| binary_sensor | Motion detection                                             |
 | number  | Auto/Dry temperature offset for supported air conditioners         |
 | light   | Control lights (on/off, mode selection)                            |
-| sensor  | Temperature, humidity, illuminance, motion, power (buy/sell)      |
+| sensor  | Temperature, humidity, illuminance, last motion timestamp, power (buy/sell)      |
 | remote  | Send infrared signals defined as "signals" for IR/AC/LIGHT types  |
 
 *Additional entities may be supported in future updates.*
+
+---
+
+## Migration to v0.3.0
+
+Motion sensors move from `sensor.<object_id>` to `binary_sensor.<object_id>`. The integration preserves the object ID and your name, icon, area, disabled and hidden settings, then removes the old registry entry. If the new ID is already occupied, Home Assistant chooses a free ID; the repair lists the actual mapping.
+
+Update automations, scripts and dashboards to reference the new `binary_sensor.` IDs. **Settings → System → Repairs** lists every changed ID; dismiss the repair after updating your references. Last motion sensors retain their IDs and now provide a timestamp.
 
 ---
 
