@@ -38,6 +38,8 @@ class NatureRemoExternalSensor(SensorEntity):
     _attr_state_class = None
 
     def __init__(self, appliance, kind, source_entity_id, source_state):
+        self._added = False
+        self._listeners = set()
         self._source_entity_id = source_entity_id
         self._attr_unique_id = f"nature_remo_external_{kind}_{appliance['id']}"
         self._attr_translation_key = f"external_{kind}"
@@ -50,7 +52,19 @@ class NatureRemoExternalSensor(SensorEntity):
 
     @property
     def available(self):
-        return self.native_value is not None
+        return self._added and self.native_value is not None
+
+    @callback
+    def async_add_listener(self, listener):
+        """中継値の参照元に変更を通知する。 / Notify consumers of relayed value changes."""
+        self._listeners.add(listener)
+        return lambda: self._listeners.discard(listener)
+
+    @callback
+    def _notify_listeners(self):
+        """entity_id に依存せず通知。 / Notify independently of entity ID changes."""
+        for listener in tuple(self._listeners):
+            listener()
 
     @callback
     def _read_source(self, state):
@@ -74,14 +88,23 @@ class NatureRemoExternalSensor(SensorEntity):
         state = None if is_external_relay(self.hass, self._source_entity_id) else event.data["new_state"]
         self._read_source(state)
         self.async_write_ha_state()
+        self._notify_listeners()
 
     async def async_added_to_hass(self):
         """登録中だけ元センサーを監視。 / Track the source while the entity is registered."""
         await super().async_added_to_hass()
+        self._added = True
         if is_external_relay(self.hass, self._source_entity_id):
             self._read_source(None)
-            return
-        self._read_source(self.hass.states.get(self._source_entity_id))
-        self.async_on_remove(async_track_state_change_event(
-            self.hass, [self._source_entity_id], self._source_changed
-        ))
+        else:
+            self._read_source(self.hass.states.get(self._source_entity_id))
+            self.async_on_remove(async_track_state_change_event(
+                self.hass, [self._source_entity_id], self._source_changed
+            ))
+        self._notify_listeners()
+
+    async def async_will_remove_from_hass(self):
+        """無効化・削除中は参照元を内蔵値へ戻す。 / Consumers fall back while disabled or removed."""
+        self._added = False
+        self._notify_listeners()
+        await super().async_will_remove_from_hass()

@@ -131,7 +131,7 @@ data:
 
 Configure external temperature and humidity sensors for each Remo device that has an air conditioner.
 
-By selecting entities from Home Assistant settings, the climate device will use the specified sensors instead of the default values provided by Nature Remo.
+The climate entity reads external temperature and humidity through these relay sensors. If a relay is unconfigured, unavailable or disabled, it falls back to the corresponding built-in Remo reading. When the source recovers, climate updates immediately.
 
 ### How it works
 
@@ -149,7 +149,7 @@ Once configured, the selected external sensors will be used for:
 
 ### Notes
 
-- If no external sensors are configured, the integration will continue to use the default values from Nature Remo
+- With no external sensor, or while its relay is unavailable, climate uses the built-in Remo value. If that value is also missing, the measurement is unknown.
 - The selected entity must exist and have a finite numeric state. Temperature must use °C or °F, and humidity must use %.
 - Choose the original sensor as the source. Nature Remo relay sensors cannot be selected, to avoid self-references and cycles.
 - Existing external sensor selections are preserved when upgrading. Editing one Remo leaves other devices unchanged.

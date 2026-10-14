@@ -43,7 +43,7 @@ The final check is loading the integration in a real Home Assistant instance:
 1. Creates `NatureRemoAPI(entry.data["api_key"], async_get_clientsession(hass))` and a `NatureRemoCoordinator`.
 2. Stores both in `hass.data[DOMAIN][entry.entry_id] = {"coordinator", "api"}`.
 3. Registers the `nature_remo.send_light_mode` service.
-4. Forwards to the platforms `climate`, `light`, `sensor`, `remote`, `number` and `binary_sensor`.
+4. Sets up `sensor` first so external relays are ready, then forwards to `climate`, `light`, `remote`, `number` and `binary_sensor`.
 
 **The coordinator does two things per poll** (`coordinator.py:_async_update_data`). The interval comes from `entry.options["update_interval"]` and defaults to 60 s. It calls `GET /devices` and `GET /appliances`, then:
 - returns `coordinator.data` = `{appliance_id: raw appliance JSON}`. Climate and light read their live state (`settings`, `aircon.range.modes`, `light.state`) from here.
@@ -89,13 +89,11 @@ Entities are created only once, at platform setup, from those dicts. Newly added
 
 **External sensors:**
 - `external_sensor.py` defines nonpolling relay sensors, one per configured type and AC, attached to the AC appliance device. The sensor platform stores instances in `hass.data[DOMAIN][entry_id]["external_sensors"][appliance_id][kind]`.
-- Relays subscribe to source state events on addition and unsubscribe on removal. They copy finite values, device/state classes and native units; missing or nonnumeric sources become unavailable. Source units are suggested initially, and HA retains control over display unit preferences.
+- Relays subscribe to source state events on addition and unsubscribe on removal. They copy finite values, device/state classes and native units; missing or nonnumeric sources become unavailable. Source units are suggested initially, and HA retains control over display unit preferences. Relay listeners notify climate directly, so renaming the relay entity does not break updates. Disabled or removed relays are unavailable to consumers.
 - Source options use the existing Remo hardware ID keys; multiple ACs on one hardware receive separate relays. Nature Remo relays across all config entries are excluded as source options and rejected on submission; saved relay sources are skipped to prevent self-references and cycles.
 
-- `NatureRemoClimate` stores only `entry_id` and re-reads `entry.options` on each update.
-- If an external sensor entity is configured, its state overrides the Remo `te`/`hu` value.
-- `async_track_state_change_event` writes climate state when that sensor changes.
-- `self.hass` is only available after `async_added_to_hass`.
+- `NatureRemoClimate` receives its relay instances at setup and reads their native values/units. It never reads external options or source entity states itself. Temperature is converted to the climate native unit.
+- If a relay is absent, unavailable or has an incompatible unit, climate falls back to the Remo `te`/`hu` reading. Relay change listeners are removed when climate unloads.
 
 **Climate mode mapping:**
 - `MODE_MAP` translates between HA and Remo modes: `HEAT`↔`warm`, `FAN_ONLY`↔`blow`, `COOL`, `DRY`, `AUTO`.

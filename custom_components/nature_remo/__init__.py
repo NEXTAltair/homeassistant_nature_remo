@@ -83,7 +83,10 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
     async_migrate_motion_entities(hass, entry)
 
     # プラットフォームを起動 / Forward entry setup to the platform
-    await hass.config_entries.async_forward_entry_setups(entry, PLATFORMS)
+    # climate が中継センサーを参照できる順序で準備する。
+    # Set up relay sensors before climate subscribes to them.
+    await hass.config_entries.async_forward_entry_setups(entry, ["sensor"])
+    await hass.config_entries.async_forward_entry_setups(entry, [platform for platform in PLATFORMS if platform != "sensor"])
 
     entry.async_on_unload(entry.add_update_listener(async_reload_options))
 
