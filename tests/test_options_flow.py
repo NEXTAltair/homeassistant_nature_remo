@@ -70,7 +70,9 @@ async def test_invalid_sensor_selection(hass, aioclient_mock, config_entry, kind
     field = f"external_{kind}"
     result = await hass.config_entries.options.async_configure(flow["flow_id"], {"device": {field: "sensor.external"}})
     assert result["type"] is FlowResultType.FORM
-    assert result["errors"] == {field: error}
+    assert result["errors"] == {"device": f"{kind}_{error}"}
+    rendered_fields = {field["name"] for field in probatio.to_field_list(result["data_schema"], custom_serializer=custom_serializer)}
+    assert result["errors"].keys() <= rendered_fields
     assert not config_entry.options
 
 

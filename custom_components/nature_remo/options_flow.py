@@ -55,7 +55,10 @@ class NatureRemoOptionsFlowHandler(config_entries.OptionsFlow):
                     field = f"external_{kind}"
                     if entity_id := values.get(field):
                         if error := self._sensor_error(entity_id, kind):
-                            errors[field] = error
+                            # セクション内の欄にエラーは渡されないため、セクションに表示。
+                            # Nested fields do not receive errors; show them on the section.
+                            errors["device"] = f"{kind}_{error}"
+                            break
             if not errors:
                 self._options[self._device.id] = values.get("ip_address", "")
                 if self._has_aircon:

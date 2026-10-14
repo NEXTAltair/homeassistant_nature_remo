@@ -71,9 +71,12 @@
       }
     },
     "error": {
-      "entity_not_found": "The selected entity does not exist.",
-      "invalid_number": "The selected sensor must have a finite numeric value.",
-      "invalid_unit": "Select a temperature sensor in °C or °F, or a humidity sensor in %."
+      "temperature_entity_not_found": "The selected external temperature sensor does not exist.",
+      "temperature_invalid_number": "The external temperature sensor must have a finite numeric value.",
+      "temperature_invalid_unit": "The external temperature sensor must use °C or °F.",
+      "humidity_entity_not_found": "The selected external humidity sensor does not exist.",
+      "humidity_invalid_number": "The external humidity sensor must have a finite numeric value.",
+      "humidity_invalid_unit": "The external humidity sensor must use %."
     }
   }
 }

@@ -71,9 +71,12 @@
       }
     },
     "error": {
-      "entity_not_found": "選択したエンティティが存在しません。",
-      "invalid_number": "有限の数値を持つセンサーを選択してください。",
-      "invalid_unit": "温度は °C または °F、湿度は % のセンサーを選択してください。"
+      "temperature_entity_not_found": "選択した外部温度センサーが存在しません。",
+      "temperature_invalid_number": "外部温度には有限の数値を持つセンサーを選択してください。",
+      "temperature_invalid_unit": "外部温度には°C または °F のセンサーを選択してください。",
+      "humidity_entity_not_found": "選択した外部湿度センサーが存在しません。",
+      "humidity_invalid_number": "外部湿度には有限の数値を持つセンサーを選択してください。",
+      "humidity_invalid_unit": "外部湿度には% のセンサーを選択してください。"
     }
   }
 }
