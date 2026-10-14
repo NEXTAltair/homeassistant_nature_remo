@@ -1,12 +1,8 @@
 """Nature Remo エアコン。 / Nature Remo air conditioners."""
 
-import math
-
 from homeassistant.components.climate import ClimateEntity, ClimateEntityFeature, HVACMode
 from homeassistant.const import ATTR_TEMPERATURE, UnitOfTemperature
-from homeassistant.core import callback
 from homeassistant.exceptions import ServiceValidationError
-from homeassistant.helpers.event import async_track_state_change_event
 from homeassistant.helpers.update_coordinator import CoordinatorEntity
 from homeassistant.util.unit_conversion import TemperatureConverter
 
@@ -26,7 +22,7 @@ async def async_setup_entry(hass, entry, async_add_entities):
     """エアコンを追加。 / Add air conditioners."""
     data = hass.data[DOMAIN][entry.entry_id]
     async_add_entities(
-        NatureRemoClimate(data["coordinator"], control, entry.entry_id)
+        NatureRemoClimate(data["coordinator"], control, data.get("external_sensors", {}).get(control.appliance_id, {}))
         for control in data["aircon_controls"].values()
     )
 
@@ -36,11 +32,11 @@ class NatureRemoClimate(CoordinatorEntity, ClimateEntity):
 
     _enable_turn_on_off_backwards_compatibility = False
 
-    def __init__(self, coordinator, control, entry_id):
+    def __init__(self, coordinator, control, external_sensors):
         super().__init__(coordinator)
         self.control = control
         self._attr_device_info = appliance_device_info(control.appliance)
-        self._entry_id = entry_id
+        self._external_sensors = external_sensors
         self._device_id = control.appliance["device"]["id"]
         self._attr_unique_id = f"nature_remo_climate_{control.appliance_id}"
         self._attr_name = f"Nature Remo {control.appliance['nickname']}"
@@ -136,24 +132,15 @@ class NatureRemoClimate(CoordinatorEntity, ClimateEntity):
     def swing_horizontal_mode(self):
         return self.control.settings.get("dirh") if self.swing_horizontal_modes else None
 
-    def _external_entity_id(self, kind):
-        entry = self.hass.config_entries.async_get_entry(self._entry_id)
-        return entry.options.get(f"external_{kind}_{self._device_id}") if entry else None
-
     def _current_value(self, kind, event):
-        """外部値が有効なら優先。 / Prefer a valid external reading."""
-        entity_id = self._external_entity_id(kind)
-        if entity_id and (state := self.hass.states.get(entity_id)):
-            try:
-                value = float(state.state)
-                if math.isfinite(value):
-                    if kind == "temperature":
-                        unit = state.attributes.get("unit_of_measurement", UnitOfTemperature.CELSIUS)
-                        if unit in (UnitOfTemperature.CELSIUS, UnitOfTemperature.FAHRENHEIT):
-                            return TemperatureConverter.convert(value, unit, self.temperature_unit)
-                    return value
-            except ValueError:
-                pass
+        """中継値を参照し、利用不可なら本体へ戻す。 / Use the relay, falling back to hardware when unavailable."""
+        relay = self._external_sensors.get(kind)
+        if relay is not None and relay.available:
+            unit = relay.native_unit_of_measurement
+            if kind == "temperature" and unit in (UnitOfTemperature.CELSIUS, UnitOfTemperature.FAHRENHEIT):
+                return TemperatureConverter.convert(relay.native_value, unit, self.temperature_unit)
+            if kind == "humidity" and unit == "%":
+                return relay.native_value
         value = self.coordinator.devices.get(self._device_id, {}).get("events", {}).get(event, {}).get("val")
         if kind == "temperature" and value is not None:
             return TemperatureConverter.convert(value, UnitOfTemperature.CELSIUS, self.temperature_unit)
@@ -167,16 +154,11 @@ class NatureRemoClimate(CoordinatorEntity, ClimateEntity):
     def current_humidity(self):
         return self._current_value("humidity", "hu")
 
-    @callback
-    def _external_changed(self, event):
-        """外部センサーを即時反映。 / Immediately reflect external sensor changes."""
-        self.async_write_ha_state()
-
     async def async_added_to_hass(self):
+        """中継センサーの更新だけを監視。 / Subscribe only to updates from relay sensors."""
         await super().async_added_to_hass()
-        entity_ids = [self._external_entity_id(kind) for kind in ("temperature", "humidity")]
-        if sources := [entity_id for entity_id in entity_ids if entity_id]:
-            self.async_on_remove(async_track_state_change_event(self.hass, sources, self._external_changed))
+        for relay in self._external_sensors.values():
+            self.async_on_remove(relay.async_add_listener(self.async_write_ha_state))
 
     async def async_set_hvac_mode(self, hvac_mode):
         """モードを変更。 / Change the operating mode."""
