@@ -12,7 +12,7 @@ from .migration import async_migrate_motion_entities
 from .device import async_register_devices
 
 _LOGGER = logging.getLogger(__name__)
-PLATFORMS = ["climate", "light", "sensor", "remote", "number", "binary_sensor"]
+PLATFORMS = ["climate", "light", "sensor", "remote", "number", "binary_sensor", "button"]
 
 
 async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
