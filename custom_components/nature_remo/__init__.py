@@ -5,11 +5,12 @@ from homeassistant.config_entries import ConfigEntry
 from homeassistant.core import HomeAssistant, ServiceCall
 from homeassistant.helpers.aiohttp_client import async_get_clientsession
 from .api import NatureRemoAPI
+from .aircon import AirconControl
 from .coordinator import NatureRemoCoordinator
 from .const import DOMAIN
 
 _LOGGER = logging.getLogger(__name__)
-PLATFORMS = ["climate", "light", "sensor", "remote"]
+PLATFORMS = ["climate", "light", "sensor", "remote", "number"]
 
 
 async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
@@ -32,10 +33,19 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
     coordinator = NatureRemoCoordinator(hass, entry, api, update_interval)
     await coordinator.async_config_entry_first_refresh()
 
+    # 両プラットフォームで設定を共有する。 / Share settings between both platforms.
+    aircon_controls = {
+        appliance_id: AirconControl(coordinator, appliance_id)
+        for appliance_id in coordinator.aircons
+    }
+    for control in aircon_controls.values():
+        entry.async_on_unload(coordinator.async_add_listener(control.update_offset))
+
     # coordinator, apiをhassのデータ管理下に置く / Store coordinator, api in hass data for access in platforms
     hass.data[DOMAIN][entry.entry_id] = {
         "coordinator": coordinator,
         "api": api,
+        "aircon_controls": aircon_controls,
     }
 
     # カスタムサービスの登録

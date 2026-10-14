@@ -196,7 +196,7 @@ async def test_failed_aircon_command_keeps_state(
     assert hass.states.get(entity_id).state == HVACMode.COOL
 
     aioclient_mock.post(
-        f"{NATURE_REMO_URL}/appliances/aircon-1/aircon_settings",
+        "https://api.nature.global/2/appliances/aircon-1/aircon_settings",
         status=500,
         json={"message": "failed"},
     )

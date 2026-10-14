@@ -23,5 +23,20 @@
     "abort": {
       "reauth_successful": "再認証に成功しました。"
     }
+  },
+  "entity": {
+    "number": {
+      "temperature_offset": {
+        "name": "温度補正"
+      }
+    }
+  },
+  "exceptions": {
+    "unsupported_aircon_setting": {
+      "message": "現在のエアコンのモードでは、この設定は使えません。"
+    },
+    "invalid_aircon_response": {
+      "message": "Nature Remo からのエアコンの応答が不正です。"
+    }
   }
 }

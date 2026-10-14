@@ -14,7 +14,7 @@ This repository is the fork `NEXTAltair/homeassistant_nature_remo` of `NaNaLinks
   - `api.py` handles cloud requests and parses smart meter values.
   - `coordinator.py` manages polling.
   - `config_flow.py` and `options_flow.py` handle configuration.
-- `climate.py`, `light.py`, `sensor.py` and `remote.py` are the entity platforms in that package.
+- `climate.py`, `light.py`, `sensor.py`, `remote.py` and `number.py` are the entity platforms in that package.
 - `translations/`, `services.yaml` and `manifest.json` hold localized text, service definitions and integration metadata.
 - `tests/` has the API, coordinator and config flow tests. Shared fixtures live in `conftest.py`.
 - `README.md` (English) and `README_ja.md` (Japanese) mirror each other section by section. Update both for user-facing changes.
@@ -43,7 +43,7 @@ The final check is loading the integration in a real Home Assistant instance:
 1. Creates `NatureRemoAPI(entry.data["api_key"], async_get_clientsession(hass))` and a `NatureRemoCoordinator`.
 2. Stores both in `hass.data[DOMAIN][entry.entry_id] = {"coordinator", "api"}`.
 3. Registers the `nature_remo.send_light_mode` service.
-4. Forwards to the platforms `climate`, `light`, `sensor` and `remote`.
+4. Forwards to the platforms `climate`, `light`, `sensor`, `remote` and `number`.
 
 **The coordinator does two things per poll** (`coordinator.py:_async_update_data`). The interval comes from `entry.options["update_interval"]` and defaults to 60 s. It calls `GET /devices` and `GET /appliances`, then:
 - returns `coordinator.data` = `{appliance_id: raw appliance JSON}`. Climate and light read their live state (`settings`, `aircon.range.modes`, `light.state`) from here.
@@ -64,13 +64,14 @@ Error mapping:
 
 Entities are created only once, at platform setup, from those dicts. Newly added appliances therefore need an integration reload.
 
-**Two entity patterns coexist:**
-- **`climate.py` / `light.py`** subclass plain `ClimateEntity` / `LightEntity`.
+**Entity patterns:**
+- **`light.py`** subclass plain `ClimateEntity` / `LightEntity`.
   - They hold private `_state` fields and subscribe manually via `coordinator.async_add_listener(self.update_status)` in `async_added_to_hass`.
   - After a command succeeds, they set state from the API response.
-- **`sensor.py` / `remote.py`** use `CoordinatorEntity` and read from the coordinator dicts in properties.
+- **`climate.py` / `number.py` / `sensor.py` / `remote.py`** use `CoordinatorEntity` and read from the coordinator dicts in properties.
   - The motion `BinarySensorEntity` is defined in and added from the `sensor` platform. There is no `binary_sensor` platform yet.
   - Motion is "on" if the last `mo` event was within 5 minutes.
+- Climate and number share an `AirconControl` per appliance (`hass.data[DOMAIN][entry_id]["aircon_controls"]`). It publishes successful v2 ApplianceResponse objects through the coordinator and remembers the last confirmed relative offset.
 
 **Device grouping:** every entity's `device_info.identifiers` is `(DOMAIN, <Nature Remo device id>)`, so appliances group under the physical Remo device. The options flow relies on this to recover the Remo device ID from the HA device registry.
 
@@ -87,13 +88,15 @@ Entities are created only once, at platform setup, from those dicts. Newly added
 **External sensors (upstream Issue 4):**
 - `NatureRemoClimate` stores only `entry_id` and re-reads `entry.options` on each update.
 - If an external sensor entity is configured, its state overrides the Remo `te`/`hu` value.
-- `async_track_state_change_event` triggers `update_status` when that sensor changes.
+- `async_track_state_change_event` writes climate state when that sensor changes.
 - `self.hass` is only available after `async_added_to_hass`.
 
 **Climate mode mapping:**
 - `MODE_MAP` translates between HA and Remo modes: `HEAT`↔`warm`, `FAN_ONLY`↔`blow`, `COOL`, `DRY`, `AUTO`.
 - Supported HVAC modes, the temperature range and step, and the fan and swing modes all derive from the appliance's `aircon.range.modes[<remo_mode>]`.
-- Commands POST form data to `/appliances/{id}/aircon_settings`: `operation_mode`, `temperature`, `air_volume`, `air_direction`, and `button=power-off`.
+- Commands POST all seven form fields to `/2/appliances/{id}/aircon_settings`: `operation_mode`, `temperature`, `temperature_unit`, `air_volume`, `air_direction`, `air_direction_h`, `button`. Empty strings must be included.
+- TURN_ON starts AUTO only when off and is not exposed without AUTO; TURN_OFF sends `power-off`.
+- Relative auto/dry temperatures use a number (-3..3, step 0.5); climate hides its target temperature in those modes. Singleton empty `dir`/`dirh` options mean unsupported swing.
 
 **Light custom service:**
 - Light entities register themselves in `coordinator.entity_map[entity_id]`.
@@ -122,6 +125,7 @@ Entities are created only once, at platform setup, from those dicts. Newly added
 - Existing inline tags such as `# [Issue#4]` refer to **upstream** issues. Fork issue numbers overlap with upstream ones, so tag new code with the fork's issue as `# [fork#N]`.
 - Unique IDs must stay stable, because changing them orphans users' entities:
   - `nature_remo_climate_{appliance_id}`
+  - `nature_remo_temperature_offset_{appliance_id}`
   - `nature_remo_light_{appliance_id}`
   - `nature_remo_remote_{appliance_id}`
   - `nature_remo_sensor_{id}_{key}`
