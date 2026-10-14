@@ -36,6 +36,45 @@
       },
       "external_humidity": {
         "name": "External humidity"
+      },
+      "water_heater_energy": {
+        "name": "Cumulative energy"
+      },
+      "water_heater_heating_mode": {
+        "name": "Water heating mode",
+        "state": {
+          "automatic": "Automatic",
+          "manual_heating": "Manual heating",
+          "manual_stop": "Manual stop"
+        }
+      },
+      "water_heater_remaining_water": {
+        "name": "Remaining hot water"
+      },
+      "water_heater_bath_operation": {
+        "name": "Bath operation",
+        "state": {
+          "filling": "Filling",
+          "stopped": "Stopped",
+          "keeping_warm": "Keeping warm"
+        }
+      }
+    },
+    "binary_sensor": {
+      "water_heater_running": {
+        "name": "Operation"
+      },
+      "water_heater_heating": {
+        "name": "Heating water"
+      },
+      "water_heater_daytime_heating_allowed": {
+        "name": "Daytime heating allowed"
+      },
+      "water_heater_supplying": {
+        "name": "Supplying hot water"
+      },
+      "water_heater_bath_auto": {
+        "name": "Automatic bath mode"
       }
     }
   },

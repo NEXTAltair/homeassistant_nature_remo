@@ -20,6 +20,7 @@ Please use this integration **at your own risk**.
 - Control appliances (air conditioners, lights) registered to Nature Remo
 - Retrieve temperature, humidity, illuminance, and motion sensor data
 - Access smart meter data (consumption, generation, instant power) via Nature Remo E / E Lite
+- Monitor EcoCute water heater states, energy and remaining hot water
 - Control lighting modes using custom service calls
 - Send IR commands using remote entities created from defined signals
 - Press learned IR signals from dashboard buttons
@@ -80,10 +81,10 @@ Setting a very short update interval may cause the integration to reach the API 
 | Type    | Description                                                        |
 |---------|--------------------------------------------------------------------|
 | climate | Control air conditioners (cooling, heating, dry)                   |
-| binary_sensor | Motion detection                                             |
+| binary_sensor | Motion detection and water heater operating states |
 | number  | Auto/Dry temperature offset for supported air conditioners         |
 | light   | Control lights (on/off, mode selection)                            |
-| sensor  | Temperature, humidity, illuminance, last motion timestamp, power (buy/sell), external sensor relays |
+| sensor  | Temperature, humidity, illuminance, last motion timestamp, power (buy/sell), external sensor relays, water heater energy/volume/modes |
 | remote  | Send learned IR/AC/LIGHT signals and TV preset or learned commands |
 | button | Send each learned signal on any appliance |
 
@@ -144,6 +145,18 @@ Every TV registered in Remo gets a remote entity, even without learned signals. 
 Only TVs with both `power-on` and `power-off` support `remote.turn_on` / `remote.turn_off`. HA cannot hide those shared remote actions for individual TVs: on toggle-only models, they return an unsupported error without sending. To explicitly toggle power, send `power` with `remote.send_command`. Power starts unknown; after a discrete send, the displayed state is assumed, since infrared cannot confirm the TV's physical state.
 
 TV behavior is covered by mocked tests; the previously used REGZA 32ZP2 is no longer available for hardware verification. TV is provided as remote, without media_player features.
+
+---
+
+## EcoCute Water Heaters
+
+Remo E water heaters (`EL_ELECTRIC_WATER_HEATER`) expose read-only sensors on their appliance device:
+
+- Operating, water-heating and hot-water-supply states; daytime heating permission and automatic bath mode
+- Cumulative energy in kWh (`total_increasing`), suitable for the Energy dashboard
+- Remaining hot water in liters; water-heating mode and bath operation
+
+Only supported properties in the first successful response create entities. Values are fetched by a separate five-minute poll, enabled only when a supported heater is present. Reload after adding a heater or new properties. Invalid or missing readings remain unknown; valid zero values are preserved. Failed polls keep the previous snapshot and mark entities unavailable until a successful poll. A temporary heater API failure during startup does not block other appliances; heater sensors appear automatically when the first fetch succeeds. Property timestamps are not used to infer availability, and no heater controls are provided.
 
 ---
 

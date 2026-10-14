@@ -12,7 +12,7 @@ This repository is the fork `NEXTAltair/homeassistant_nature_remo` of `NaNaLinks
 
 - `custom_components/nature_remo/` holds the integration source:
   - `api.py` handles cloud requests and parses smart meter values.
-  - `coordinator.py` manages polling.
+  - `coordinator.py` manages normal polling; `echonetlite.py` manages optional water heater polling and hexadecimal parsing.
   - `config_flow.py` and `options_flow.py` handle configuration.
 - `climate.py`, `light.py`, `sensor.py`, `remote.py`, `number.py`, `binary_sensor.py` and `button.py` are the entity platforms in that package.
 - `translations/`, `services.yaml` and `manifest.json` hold localized text, service definitions and integration metadata.
@@ -39,9 +39,9 @@ The final check is loading the integration in a real Home Assistant instance:
 
 ## Architecture
 
-**One coordinator per config entry.** `__init__.py:async_setup_entry`:
+**One main coordinator per config entry, plus an optional ECHONET Lite coordinator.** `__init__.py:async_setup_entry`:
 1. Creates `NatureRemoAPI(entry.data["api_key"], async_get_clientsession(hass))` and a `NatureRemoCoordinator`.
-2. Stores both in `hass.data[DOMAIN][entry.entry_id] = {"coordinator", "api"}`.
+2. Stores the main coordinator, API, shared aircon controls and optional `echonetlite_coordinator` in `hass.data[DOMAIN][entry.entry_id]`.
 3. Registers the `nature_remo.send_light_mode` service.
 4. Sets up `sensor` first so external relays are ready, then forwards to `climate`, `light`, `remote`, `number`, `binary_sensor` and `button`.
 
@@ -65,7 +65,7 @@ Error mapping:
 Entities are created only once, at platform setup, from those dicts. Newly added appliances therefore need an integration reload.
 
 **Entity patterns:**
-- **`light.py`** subclass plain `ClimateEntity` / `LightEntity`.
+- **`light.py`** uses plain `LightEntity`.
   - They hold private `_state` fields and subscribe manually via `coordinator.async_add_listener(self.update_status)` in `async_added_to_hass`.
   - After a command succeeds, they set state from the API response.
 - **`climate.py` / `number.py` / `sensor.py` / `remote.py` / `binary_sensor.py` / `button.py`** use `CoordinatorEntity` and read from the coordinator dicts in properties.
@@ -124,6 +124,14 @@ Entities are created only once, at platform setup, from those dicts. Newly added
 - Signals named `on`/`オン` and `off`/`オフ` back `turn_on`/`turn_off`.
 - Sends `POST /signals/{id}/send`.
 
+**Water heaters (EcoCute):**
+- Setup creates `NatureRemoEchonetLiteCoordinator` only if the main snapshot contains `EL_ELECTRIC_WATER_HEATER`. It fetches `GET /echonetlite/appliances` separately every 300 seconds and skips the request if no heaters remain in the main snapshot.
+- The response wraps an `appliances` list. Both `epc` and `val` are hexadecimal strings; parsing is separate from decimal smart meter values. `Device` is uppercase here; device metadata comes from the main appliance snapshot.
+- EPC 80/b2/c0/c3/e3 provide binary states, 85 provides cumulative kWh (`total_increasing`), e1 provides stored liters (`measurement`), and b0/ea provide translated enums. Only supported EPCs in the first successful snapshot create entities; later additions require reload.
+- Invalid codes, lengths, non-hex strings and out-of-range numbers become None. Legitimate zeros remain zero. Missing EPCs become unknown; failed or malformed polls preserve the prior snapshot and mark entities unavailable. Authentication starts reauth; rate limits honor reset times.
+- A non-authentication failure of the first optional fetch does not block normal platforms. The coordinator retains an unavailable empty snapshot and retries on its timer; sensor and binary_sensor subscribe until the first successful snapshot to create their entities without a reload. Initial authentication failures still start reauth.
+- Listener lifetimes belong to the config entry. Discovery and five-minute polling continue even when the heater has no supported EPC entities, and both stop on unload. No write controls or updated_at freshness checks are provided.
+
 **API client** (`api.py`):
 - All calls go through `_request`. It logs the `X-Rate-Limit-*` headers and tolerates their absence.
 - It raises `NatureRemoError` or a subclass on any non-200 response or invalid JSON. It never returns `None`.
@@ -145,13 +153,14 @@ Entities are created only once, at platform setup, from those dicts. Newly added
   - `nature_remo_light_{appliance_id}`
   - `nature_remo_remote_{appliance_id}`
   - `nature_remo_signal_{signal_id}`
+  - `nature_remo_water_heater_{appliance_id}_{epc}` (lowercase hexadecimal EPC)
   - `nature_remo_sensor_{id}_{key}`
   - `{device_id}_motion`
   - `{device_id}_last_motion`
   - `nature_remo_external_temperature_{appliance_id}`
   - `nature_remo_external_humidity_{appliance_id}`
 - User-visible text goes in both `translations/en.json` and `translations/ja.json`.
-- The Nature Remo Cloud API is rate-limited to 30 requests per 5 minutes per account. Avoid adding extra polling calls.
+- The Nature Remo Cloud API is rate-limited to 30 requests per 5 minutes per account. Avoid adding extra polling calls; the optional five-minute ECHONET Lite poll is the sole exception.
 
 ## Testing Guidelines
 

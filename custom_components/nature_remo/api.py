@@ -158,6 +158,10 @@ class NatureRemoAPI:
         """
         return await self._request("GET", "/devices")
 
+    async def get_echonetlite_appliances(self):
+        """16進表現の ECHONET Lite データを取得。 / Fetch hexadecimal ECHONET Lite data."""
+        return await self._request("GET", "/echonetlite/appliances")
+
     async def send_command_climate(self, payload, appliance_id):
         """
         Nature Remo APIを使ってエアコンを操作.

@@ -36,6 +36,45 @@
       },
       "external_humidity": {
         "name": "外部湿度"
+      },
+      "water_heater_energy": {
+        "name": "積算消費電力量"
+      },
+      "water_heater_heating_mode": {
+        "name": "沸き上げ設定",
+        "state": {
+          "automatic": "自動",
+          "manual_heating": "手動沸き上げ",
+          "manual_stop": "手動停止"
+        }
+      },
+      "water_heater_remaining_water": {
+        "name": "残湯量"
+      },
+      "water_heater_bath_operation": {
+        "name": "風呂の動作状態",
+        "state": {
+          "filling": "湯張り中",
+          "stopped": "停止中",
+          "keeping_warm": "保温中"
+        }
+      }
+    },
+    "binary_sensor": {
+      "water_heater_running": {
+        "name": "動作状態"
+      },
+      "water_heater_heating": {
+        "name": "沸き上げ中"
+      },
+      "water_heater_daytime_heating_allowed": {
+        "name": "昼間沸き増し許可"
+      },
+      "water_heater_supplying": {
+        "name": "給湯中"
+      },
+      "water_heater_bath_auto": {
+        "name": "風呂自動モード"
       }
     }
   },

@@ -1,9 +1,31 @@
-from homeassistant.components.sensor import SensorDeviceClass, SensorEntity
+from homeassistant.components.sensor import SensorDeviceClass, SensorEntity, SensorEntityDescription, SensorStateClass
+from homeassistant.const import UnitOfEnergy, UnitOfVolume
 from homeassistant.helpers.update_coordinator import CoordinatorEntity
 from .coordinator import NatureRemoCoordinator
 from .const import DOMAIN
 from .device import appliance_device_info, remo_device_info
 from .external_sensor import NatureRemoExternalSensor, external_relay_ids
+from .echonetlite import NatureRemoWaterHeaterEntity, async_setup_water_heater_entities
+
+
+WATER_HEATER_SENSORS = (
+    SensorEntityDescription(
+        key="85", translation_key="water_heater_energy", device_class=SensorDeviceClass.ENERGY,
+        native_unit_of_measurement=UnitOfEnergy.KILO_WATT_HOUR, state_class=SensorStateClass.TOTAL_INCREASING,
+    ),
+    SensorEntityDescription(
+        key="b0", translation_key="water_heater_heating_mode", device_class=SensorDeviceClass.ENUM,
+        options=["automatic", "manual_heating", "manual_stop"],
+    ),
+    SensorEntityDescription(
+        key="e1", translation_key="water_heater_remaining_water", device_class=SensorDeviceClass.VOLUME_STORAGE,
+        native_unit_of_measurement=UnitOfVolume.LITERS, state_class=SensorStateClass.MEASUREMENT,
+    ),
+    SensorEntityDescription(
+        key="ea", translation_key="water_heater_bath_operation", device_class=SensorDeviceClass.ENUM,
+        options=["filling", "stopped", "keeping_warm"],
+    ),
+)
 
 
 SENSOR_TYPES = {
@@ -58,6 +80,11 @@ async def async_setup_entry(hass, entry, async_add_entities):
         "coordinator"
     ]
     entities = []
+
+    async_setup_water_heater_entities(
+        entry, hass.data[DOMAIN][entry.entry_id].get("echonetlite_coordinator"),
+        WATER_HEATER_SENSORS, NatureRemoWaterHeaterSensor, async_add_entities,
+    )
 
     # 設定済みの外部センサーを各エアコンに中継する。
     # Relay configured external sensors on each air conditioner.
@@ -118,6 +145,15 @@ async def async_setup_entry(hass, entry, async_add_entities):
         )
 
     async_add_entities(entities)
+
+
+class NatureRemoWaterHeaterSensor(NatureRemoWaterHeaterEntity, SensorEntity):
+    """エネルギー・残湯量・モード。 / Energy, remaining water and modes."""
+
+    @property
+    def native_value(self):
+        """検証済みの値を表示。 / Expose the validated value."""
+        return self.value
 
 
 class NatureRemoSensor(CoordinatorEntity, SensorEntity):
