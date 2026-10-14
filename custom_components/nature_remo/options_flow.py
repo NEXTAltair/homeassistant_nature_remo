@@ -1,153 +1,103 @@
-import logging
+"""本体ごとのオプション設定。 / Per-hardware options flow."""
 
-from homeassistant import config_entries
-from homeassistant.helpers import selector
+from math import isfinite
 
 import voluptuous as vol
+
+from homeassistant import config_entries
+from homeassistant.const import ATTR_UNIT_OF_MEASUREMENT, PERCENTAGE, UnitOfTemperature
+from homeassistant.data_entry_flow import section
+from homeassistant.helpers import selector
 
 from .const import DOMAIN
 from .device import remo_registry_devices
 
-_LOGGER = logging.getLogger(__name__)
-
 
 class NatureRemoOptionsFlowHandler(config_entries.OptionsFlow):
-    """
-    Nature Remo のオプション設定フローを定義する.
-    Defines the options flow for Nature Remo integration.
-    """
+    """固定キーで翻訳し、既存の保存キーを維持する。 / Translate fixed fields and preserve storage keys."""
 
     async def async_step_init(self, user_input=None):
-
-        devices = remo_registry_devices(self.hass, self.config_entry)
-
-        options = self.config_entry.options
-        lang = self.hass.config.language
-
-        if lang == "ja":
-            interval_label = "更新間隔（秒）"
-            ip_label_suffix = "：IPアドレス"
-            ext_temp_label_suffix = "：外部温度センサー"
-            ext_humidity_label_suffix = "：外部湿度センサー"
-        else:
-            interval_label = "Update Interval (seconds)"
-            ip_label_suffix = ": IP Address"
-            ext_temp_label_suffix = ": External Temperature Sensor"
-            ext_humidity_label_suffix = ": External Humidity Sensor"
-
-        # ラベル → optionsキー のマッピング
-        # label → options key mapping
-        special_key_map = {interval_label: "update_interval"}
-        label_key_map = {}
-
-        interval_default = options.get("update_interval", 60)
-        data_schema = {
-            vol.Optional(interval_label, default=interval_default): vol.In(
-                [30, 60, 90]
-            ),
-        }
-
-        for device in devices:
-            name = device.name_by_user or device.name or "Unknown Device"
-
-            # [案B] HAの内部device_idではなく、Nature RemoのdeviceID（identifiers）を使用する
-            # Use Nature Remo device ID from identifiers instead of HA internal device ID
-            nature_remo_device_id = next(
-                (identifier_id for domain, identifier_id in device.identifiers if domain == DOMAIN),
-                None,
-            )
-
-            if nature_remo_device_id is None:
-                _LOGGER.warning(
-                    f"デバイス '{name}' のNature Remo device IDが見つかりません。スキップします。"
-                    f" / Nature Remo device ID not found for device '{name}'. Skipping."
-                )
-                continue
-
-            _LOGGER.debug(
-                f"デバイス '{name}' のNature Remo device ID: {nature_remo_device_id}"
-                f" / Nature Remo device ID for '{name}': {nature_remo_device_id}"
-            )
-
-            # デバイスごとのIPアドレス設定
-            # IP address setting per device (using HA internal ID as before)
-            ip_label = f"{name} {ip_label_suffix}"
-            ip_key = device.id  # IPアドレスはHA内部IDのままでよい
-            label_key_map[ip_label] = ip_key
-            data_schema[
-                vol.Optional(
-                    ip_label,
-                    default=options.get(ip_key, ""),
-                )
-            ] = str
-
-            # デバイスごとの外部温度センサー
-            # External temperature sensor per device
-            ext_temp_label = f"{name} {ext_temp_label_suffix}"
-            ext_temp_key = f"external_temperature_{nature_remo_device_id}"  # [案B] Nature Remo device IDを使用
-            label_key_map[ext_temp_label] = ext_temp_key
-            data_schema[
-                vol.Optional(
-                    ext_temp_label,
-                    description={"suggested_value": options.get(ext_temp_key)},
-                )
-            ] = selector.EntitySelector(
-                selector.EntitySelectorConfig(
-                    domain="sensor",
-                    device_class="temperature",
-                    multiple=False,
-                )
-            )
-
-            # デバイスごとの外部湿度センサー
-            # External humidity sensor per device
-            ext_humidity_label = f"{name} {ext_humidity_label_suffix}"
-            ext_humidity_key = f"external_humidity_{nature_remo_device_id}"  # [案B] Nature Remo device IDを使用
-            label_key_map[ext_humidity_label] = ext_humidity_key
-            data_schema[
-                vol.Optional(
-                    ext_humidity_label,
-                    description={"suggested_value": options.get(ext_humidity_key)},
-                )
-            ] = selector.EntitySelector(
-                selector.EntitySelectorConfig(
-                    domain="sensor",
-                    device_class="humidity",
-                    multiple=False,
-                )
-            )
-
+        """共通設定と対象本体を選ぶ。 / Choose general settings and hardware."""
+        self._devices = {device.id: device for device in remo_registry_devices(self.hass, self.config_entry)}
         if user_input is not None:
-            result = {}
+            self._options = dict(self.config_entry.options)
+            self._options["update_interval"] = user_input["update_interval"]
+            if device_id := user_input.get("device"):
+                self._device = self._devices[device_id]
+                self._remo_id = next(identifier for domain, identifier in self._device.identifiers if domain == DOMAIN)
+                coordinator = self.hass.data.get(DOMAIN, {}).get(self.config_entry.entry_id, {}).get("coordinator")
+                self._has_aircon = coordinator is not None and any(
+                    appliance["device"]["device_id"] == self._remo_id
+                    for appliance in coordinator.aircons.values()
+                )
+                return await self.async_step_device()
+            return self.async_create_entry(title="", data=self._options)
 
-            for label, value in user_input.items():
-                if label in special_key_map:
-                    result[special_key_map[label]] = value
-                elif label in label_key_map:
-                    result[label_key_map[label]] = value
-
-            lang = self.hass.config.language
-            if lang == "ja":
-                title = "再読み込みが必要です"
-                message = "Nature Remoの統合を再読み込みしてください。"
-            else:
-                title = "Reload Required"
-                message = "Please reload the Nature Remo integration to apply changes."
-
-            await self.hass.services.async_call(
-                "persistent_notification",
-                "create",
-                {
-                    "title": title,
-                    "message": message,
-                    "notification_id": "nature_remo_reload_needed",
-                },
-                blocking=True,
+        schema = {
+            vol.Required("update_interval", default=self.config_entry.options.get("update_interval", 60)): vol.In([30, 60, 90]),
+        }
+        if self._devices:
+            schema[vol.Optional("device")] = selector.SelectSelector(
+                selector.SelectSelectorConfig(options=[
+                    {"value": device.id, "label": device.name_by_user or device.name or "Nature Remo"}
+                    for device in self._devices.values()
+                ], mode=selector.SelectSelectorMode.DROPDOWN)
             )
+        return self.async_show_form(step_id="init", data_schema=vol.Schema(schema))
 
-            return self.async_create_entry(title="", data=result)
+    async def async_step_device(self, user_input=None):
+        """選んだ本体の設定を検証する。 / Validate settings for the selected hardware."""
+        errors = {}
+        values = user_input.get("device", {}) if user_input is not None else {}
+        if user_input is not None:
+            if self._has_aircon:
+                for kind in ("temperature", "humidity"):
+                    field = f"external_{kind}"
+                    if entity_id := values.get(field):
+                        if error := self._sensor_error(entity_id, kind):
+                            errors[field] = error
+            if not errors:
+                self._options[self._device.id] = values.get("ip_address", "")
+                if self._has_aircon:
+                    for kind in ("temperature", "humidity"):
+                        field = f"external_{kind}"
+                        key = f"{field}_{self._remo_id}"
+                        if entity_id := values.get(field):
+                            self._options[key] = entity_id
+                        else:
+                            self._options.pop(key, None)
+                return self.async_create_entry(title="", data=self._options)
 
+        # suggested_value を使い、選択解除が既定値で上書きされないようにする。
+        # Use suggestions so clearing a selection does not reinsert a default.
+        fields = {
+            vol.Optional("ip_address", description={"suggested_value": values.get("ip_address", self._options.get(self._device.id, ""))}): str,
+        }
+        if self._has_aircon:
+            for kind in ("temperature", "humidity"):
+                field = f"external_{kind}"
+                selected = values.get(field) if user_input is not None else self._options.get(f"{field}_{self._remo_id}")
+                fields[vol.Optional(field, description={"suggested_value": selected})] = selector.EntitySelector(
+                    selector.EntitySelectorConfig(domain="sensor", device_class=kind, multiple=False)
+                )
         return self.async_show_form(
-            step_id="init",
-            data_schema=vol.Schema(data_schema),
+            step_id="device",
+            data_schema=vol.Schema({vol.Required("device"): section(vol.Schema(fields), {"collapsed": False})}),
+            errors=errors,
+            description_placeholders={"device_name": self._device.name_by_user or self._device.name or "Nature Remo"},
         )
+
+    def _sensor_error(self, entity_id, kind):
+        """存在・有限数値・単位を検証。 / Validate existence, a finite number and units."""
+        state = self.hass.states.get(entity_id)
+        if state is None:
+            return "entity_not_found"
+        try:
+            if not isfinite(float(state.state)):
+                return "invalid_number"
+        except (TypeError, ValueError):
+            return "invalid_number"
+        units = (UnitOfTemperature.CELSIUS, UnitOfTemperature.FAHRENHEIT) if kind == "temperature" else (PERCENTAGE,)
+        if state.attributes.get(ATTR_UNIT_OF_MEASUREMENT) not in units:
+            return "invalid_unit"
+        return None

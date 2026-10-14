@@ -44,5 +44,36 @@
       "title": "Motion sensor entity IDs have changed",
       "description": "Motion sensors now use the binary_sensor domain. Update sensor. references to the binary_sensor. IDs below in automations, scripts and dashboards. Names, icons, areas and disabled/hidden settings were preserved.\n\n{entities}\n\nDismiss this repair after updating your references."
     }
+  },
+  "options": {
+    "step": {
+      "init": {
+        "title": "Nature Remo settings",
+        "description": "Select a Remo to edit its settings, or leave it empty to save only the update interval.",
+        "data": {
+          "update_interval": "Update interval (seconds)",
+          "device": "Remo device"
+        }
+      },
+      "device": {
+        "title": "Settings for {device_name}",
+        "sections": {
+          "device": {
+            "name": "{device_name}",
+            "description": "Clear a sensor selection to use the built-in sensor. Settings apply automatically when saved.",
+            "data": {
+              "ip_address": "IP address (reserved for future use)",
+              "external_temperature": "External temperature sensor",
+              "external_humidity": "External humidity sensor"
+            }
+          }
+        }
+      }
+    },
+    "error": {
+      "entity_not_found": "The selected entity does not exist.",
+      "invalid_number": "The selected sensor must have a finite numeric value.",
+      "invalid_unit": "Select a temperature sensor in °C or °F, or a humidity sensor in %."
+    }
   }
 }

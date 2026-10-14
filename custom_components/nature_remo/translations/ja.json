@@ -44,5 +44,36 @@
       "title": "人感センサーのエンティティ ID が変わりました",
       "description": "人感センサーを binary_sensor ドメインに移しました。自動化・スクリプト・ダッシュボードの sensor. を、以下の binary_sensor. の ID に書き換えてください。名前・アイコン・エリア・無効化／非表示の設定は引き継いでいます。\n\n{entities}\n\n参照先の更新が終わったら、この修理通知を閉じてください。"
     }
+  },
+  "options": {
+    "step": {
+      "init": {
+        "title": "Nature Remo の設定",
+        "description": "設定する Remo 本体を選択してください。未選択なら更新間隔だけを保存します。",
+        "data": {
+          "update_interval": "更新間隔（秒）",
+          "device": "Remo 本体"
+        }
+      },
+      "device": {
+        "title": "{device_name} の設定",
+        "sections": {
+          "device": {
+            "name": "{device_name}",
+            "description": "センサーの選択を外すと内蔵センサーを使用します。保存後は自動で反映されます。",
+            "data": {
+              "ip_address": "IP アドレス（将来の機能用）",
+              "external_temperature": "外部温度センサー",
+              "external_humidity": "外部湿度センサー"
+            }
+          }
+        }
+      }
+    },
+    "error": {
+      "entity_not_found": "選択したエンティティが存在しません。",
+      "invalid_number": "有限の数値を持つセンサーを選択してください。",
+      "invalid_unit": "温度は °C または °F、湿度は % のセンサーを選択してください。"
+    }
   }
 }

@@ -98,6 +98,8 @@ async def test_options_show_hardware_only(hass, aioclient_mock, config_entry):
     mock_api(aioclient_mock, appliances=appliances())
     await setup(hass, config_entry)
     result = await hass.config_entries.options.async_init(config_entry.entry_id)
-    keys = [str(key) for key in result["data_schema"].schema]
-    assert len(keys) == 4
-    assert all("Remo" in key for key in keys if "Interval" not in key)
+    schema = result["data_schema"].schema
+    assert {str(key) for key in schema} == {"update_interval", "device"}
+    options = schema["device"].config["options"]
+    parent = dr.async_get(hass).async_get_device_by_identifier((DOMAIN, "device-1"), config_entry.entry_id)
+    assert options == [{"value": parent.id, "label": "Remo"}]
