@@ -161,13 +161,13 @@ class NatureRemoSensor(CoordinatorEntity, SensorEntity):
         Return the current value of the sensor.
         """
         if self._key in ("te", "hu", "il"):
-            # 温度、湿度、照度
-            return self.coordinator.devices[self._appliance_id]["events"][self._key][
-                "val"
-            ]
+            # 温度、湿度、照度（最新の取得結果にイベントが無ければunknown）
+            # Temperature, humidity, illuminance (unknown if the latest poll lacks the event)
+            device = self.coordinator.devices.get(self._appliance_id, {})
+            return device.get("events", {}).get(self._key, {}).get("val")
 
-        # 電気使用量
-        return self.coordinator.smart_meters[self._appliance_id][self._key]
+        # 電気使用量（欠測時はNone=unknown） / Electricity (None = unknown when missing)
+        return self.coordinator.smart_meters.get(self._appliance_id, {}).get(self._key)
 
     @property
     def extra_state_attributes(self):

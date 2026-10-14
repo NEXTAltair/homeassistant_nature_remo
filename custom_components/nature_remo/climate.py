@@ -517,14 +517,12 @@ class NatureRemoClimate(ClimateEntity):
             _LOGGER.warning("Unsupported HVAC mode: %s", hvac_mode)
             return
 
+        # 状態は送信成功後にレスポンスから更新する（失敗時に要求した状態を表示しない）
+        # Update state from the response only after the command succeeds
         if hvac_mode == HVACMode.OFF:
             payload = {"button": "power-off"}
-            self._button = "power-off"
         else:
-            operation_mode = MODE_MAP.get(hvac_mode)
-            payload = {"operation_mode": operation_mode}
-            self._button = ""
-            self._hvac_mode = hvac_mode
+            payload = {"operation_mode": MODE_MAP.get(hvac_mode)}
 
         response = await self._api.send_command_climate(payload, self._appliance_id)
         _LOGGER.info("Set HVACMode: %s", response)

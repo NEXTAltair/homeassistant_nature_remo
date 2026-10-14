@@ -1,0 +1,27 @@
+{
+  "config": {
+    "step": {
+      "user": {
+        "title": "Nature Remo",
+        "data": {
+          "name": "Name",
+          "api_key": "Access token"
+        }
+      },
+      "reauth_confirm": {
+        "title": "Re-authenticate Nature Remo",
+        "description": "Nature Remo rejected the access token (it may have been revoked). Issue a new token at https://home.nature.global and enter it here.",
+        "data": {
+          "api_key": "Access token"
+        }
+      }
+    },
+    "error": {
+      "invalid_auth": "The access token was rejected.",
+      "cannot_connect": "Could not reach the Nature Remo API. Please try again later."
+    },
+    "abort": {
+      "reauth_successful": "Re-authentication was successful."
+    }
+  }
+}

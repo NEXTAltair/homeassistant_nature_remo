@@ -1,0 +1,3 @@
+# 最新のHome Assistantで検証するため、バージョンは固定しない
+# Always test against the latest Home Assistant; do not pin versions
+pytest-homeassistant-custom-component

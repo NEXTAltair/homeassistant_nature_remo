@@ -1,0 +1,27 @@
+{
+  "config": {
+    "step": {
+      "user": {
+        "title": "Nature Remo",
+        "data": {
+          "name": "名前",
+          "api_key": "アクセストークン"
+        }
+      },
+      "reauth_confirm": {
+        "title": "Nature Remo の再認証",
+        "description": "Nature Remo にアクセストークンを拒否されました（失効した可能性があります）。https://home.nature.global で新しいトークンを発行して入力してください。",
+        "data": {
+          "api_key": "アクセストークン"
+        }
+      }
+    },
+    "error": {
+      "invalid_auth": "アクセストークンが拒否されました。",
+      "cannot_connect": "Nature Remo API に接続できませんでした。しばらくしてから再試行してください。"
+    },
+    "abort": {
+      "reauth_successful": "再認証に成功しました。"
+    }
+  }
+}
