@@ -115,6 +115,7 @@ class NatureRemoCoordinator(DataUpdateCoordinator):
                 "name": name,
                 "device_id": device_id,
                 "events": newest_events,
+                "model": device.get("model"),
                 "firmware_version": device.get("firmware_version", ""),
             }
 

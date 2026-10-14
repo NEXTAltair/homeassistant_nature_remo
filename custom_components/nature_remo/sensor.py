@@ -2,6 +2,7 @@ from homeassistant.components.sensor import SensorDeviceClass, SensorEntity
 from homeassistant.helpers.update_coordinator import CoordinatorEntity
 from .coordinator import NatureRemoCoordinator
 from .const import DOMAIN
+from .device import appliance_device_info, remo_device_info
 
 
 SENSOR_TYPES = {
@@ -81,11 +82,7 @@ async def async_setup_entry(hass, entry, async_add_entities):
                         coordinator,
                         device_id,
                         data["name"],
-                        {
-                            "device_id": data["device_id"],
-                            "name": data["name"],
-                            "firmware_version": data["firmware_version"],
-                        },
+                        coordinator.devices[device_id],
                         key,
                         SENSOR_TYPES[key],
                     )
@@ -99,11 +96,7 @@ async def async_setup_entry(hass, entry, async_add_entities):
                 coordinator,
                 device_id,
                 data["name"],
-                {
-                    "device_id": data["device_id"],
-                    "name": data["name"],
-                    "firmware_version": data["firmware_version"],
-                },
+                coordinator.devices[device_id],
             )
         )
 
@@ -125,6 +118,8 @@ class NatureRemoSensor(CoordinatorEntity, SensorEntity):
         self._attr_device_class = description["device_class"]
         self._attr_state_class = description["state_class"]
         self._key = key
+        if key not in ("te", "hu", "il"):
+            self._appliance_device_info = appliance_device_info(coordinator.data[appliance_id])
 
     @property
     def device_info(self):
@@ -132,12 +127,9 @@ class NatureRemoSensor(CoordinatorEntity, SensorEntity):
         デバイス情報を返却する
         Return device info to be shown in Home Assistant UI.
         """
-        return {
-            "identifiers": {(DOMAIN, self._device["device_id"])},
-            "name": self._device["name"],
-            "manufacturer": "Nature",
-            "model": self._device.get("firmware_version", "Nature Remo"),
-        }
+        if self._key not in ("te", "hu", "il"):
+            return self._appliance_device_info
+        return remo_device_info(self._device)
 
     @property
     def native_value(self):
@@ -192,12 +184,7 @@ class NatureRemoMotionTimeSensor(CoordinatorEntity, SensorEntity):
         モーション検出時刻センサーのデバイス情報
         Return device info for the motion time sensor.
         """
-        return {
-            "identifiers": {(DOMAIN, self._device["device_id"])},
-            "name": self._device["name"],
-            "manufacturer": "Nature",
-            "model": self._device.get("firmware_version", "Nature Remo"),
-        }
+        return remo_device_info(self._device)
 
     @property
     def native_value(self):

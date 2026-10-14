@@ -74,7 +74,7 @@ Entities are created only once, at platform setup, from those dicts. Newly added
   - Motion is "on" if the last `mo` event was within 5 minutes.
 - Climate and number share an `AirconControl` per appliance (`hass.data[DOMAIN][entry_id]["aircon_controls"]`). It publishes successful v2 ApplianceResponse objects through the coordinator and remembers the last confirmed relative offset.
 
-**Device grouping:** every entity's `device_info.identifiers` is `(DOMAIN, <Nature Remo device id>)`, so appliances group under the physical Remo device. The options flow relies on this to recover the Remo device ID from the HA device registry.
+**Device grouping:** `device.py` builds all device information. Setup explicitly registers physical Remo devices, including sensorless Remo E hardware, before registering appliances. Hardware identifiers remain `(DOMAIN, remo_device_id)`; appliances use `(DOMAIN, appliance_id)` with nickname and model manufacturer/name. `async_update_device(via_device_id=...)` links each appliance to its hardware (supported since before HA 2025.12, avoiding the now-deprecated `via_device` argument). All appliance entities use the shared helper; built-in environmental and motion sensors remain on the hardware. Entity unique IDs and registered entity IDs stay unchanged. Options list only physical Remo registry devices, never appliance children.
 
 **Options flow** (`options_flow.py`):
 - The schema keys are *display labels* (Japanese or English, depending on `hass.config.language`). On submit they are mapped back to storage keys via `label_key_map`.

@@ -90,6 +90,8 @@ Setting a very short update interval may cause the integration to reach the API 
 
 ## Migration to v0.3.0
 
+Appliances now have their own devices, linked to the physical Remo. Built-in temperature, humidity, illuminance and motion stay on the Remo device. Entity IDs are preserved (except for the motion domain change below), but **reconfigure device-based automations and area assignments** for the new appliance devices. Remo E remains registered as a parent even without built-in sensor entities.
+
 Motion sensors move from `sensor.<object_id>` to `binary_sensor.<object_id>`. The integration preserves the object ID and your name, icon, area, disabled and hidden settings, then removes the old registry entry. If the new ID is already occupied, Home Assistant chooses a free ID; the repair lists the actual mapping.
 
 Update automations, scripts and dashboards to reference the new `binary_sensor.` IDs. **Settings → System → Repairs** lists every changed ID; dismiss the repair after updating your references. Last motion sensors retain their IDs and now provide a timestamp.

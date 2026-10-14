@@ -12,6 +12,7 @@ from homeassistant.helpers.update_coordinator import CoordinatorEntity
 
 from .api import NatureRemoAPI
 from .const import DOMAIN
+from .device import appliance_device_info
 from .coordinator import NatureRemoCoordinator
 
 _LOGGER = logging.getLogger(__name__)
@@ -61,6 +62,7 @@ class NatureRemoRemoteEntity(CoordinatorEntity[NatureRemoCoordinator], RemoteEnt
         self._api = api
         self._device = remote_info["device"]
         self._appliance_id = remote_info["appliance_id"]
+        self._attr_device_info = appliance_device_info(coordinator.data[self._appliance_id])
         self._remote_info = remote_info
         self._commands = {s["name"].lower(): s["id"] for s in remote_info["signals"]}
 
@@ -72,19 +74,6 @@ class NatureRemoRemoteEntity(CoordinatorEntity[NatureRemoCoordinator], RemoteEnt
         self._power_off_id = next(
             (self._commands[c] for c in OFF_COMMANDS if c in self._commands), None
         )
-
-    @property
-    def device_info(self):
-        """
-        Home Assistantのデバイス一覧に表示するための基本情報を返す.
-        Returns basic device info for display in Home Assistant's device registry.
-        """
-        return {
-            "identifiers": {(DOMAIN, self._device["device_id"])},
-            "name": self._device["name"],
-            "manufacturer": "Nature",
-            "model": self._device.get("firmware_version", "Nature Remo"),
-        }
 
     @property
     def extra_state_attributes(self) -> dict[str, Any]:

@@ -6,13 +6,14 @@ from homeassistant.components.binary_sensor import BinarySensorEntity
 from homeassistant.helpers.update_coordinator import CoordinatorEntity
 
 from .const import DOMAIN
+from .device import remo_device_info
 
 
 async def async_setup_entry(hass, entry, async_add_entities):
     """正しいドメインに人感センサーを登録。 / Register motion in its own domain."""
     coordinator = hass.data[DOMAIN][entry.entry_id]["coordinator"]
     async_add_entities(
-        NatureRemoMotionBinarySensor(coordinator, device_id, data["name"], data)
+        NatureRemoMotionBinarySensor(coordinator, device_id, data["name"], coordinator.devices[device_id])
         for device_id, data in coordinator.motion_sensors.items()
     )
 
@@ -36,12 +37,7 @@ class NatureRemoMotionBinarySensor(CoordinatorEntity, BinarySensorEntity):
         モーション検出センサーのデバイス情報
         Return device info for the motion sensor.
         """
-        return {
-            "identifiers": {(DOMAIN, self._device["device_id"])},
-            "name": self._device["name"],
-            "manufacturer": "Nature",
-            "model": self._device.get("firmware_version", "Nature Remo"),
-        }
+        return remo_device_info(self._device)
 
     @property
     def is_on(self):
