@@ -21,7 +21,10 @@
       "cannot_connect": "Nature Remo API に接続できませんでした。しばらくしてから再試行してください。"
     },
     "abort": {
-      "reauth_successful": "再認証に成功しました。"
+      "reauth_successful": "再認証に成功しました。",
+      "already_configured": "この Nature アカウントは既に登録されています。",
+      "already_in_progress": "この Nature アカウントの設定は既に進行中です。",
+      "unique_id_mismatch": "このアクセストークンは別の Nature アカウントのものです。"
     }
   },
   "entity": {
@@ -99,6 +102,10 @@
     "motion_entity_migration": {
       "title": "人感センサーのエンティティ ID が変わりました",
       "description": "人感センサーを binary_sensor ドメインに移しました。自動化・スクリプト・ダッシュボードの sensor. を、以下の binary_sensor. の ID に書き換えてください。名前・アイコン・エリア・無効化／非表示の設定は引き継いでいます。\n\n{entities}\n\n参照先の更新が終わったら、この修理通知を閉じてください。"
+    },
+    "duplicate_account": {
+      "title": "Nature アカウントが重複登録されています",
+      "description": "同じ Nature アカウントが複数登録されています。設定 → デバイスとサービスで、1つだけ残してほかの登録を削除してください。自動では削除していません。\n\n{entries}"
     }
   },
   "options": {

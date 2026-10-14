@@ -14,7 +14,7 @@ from .test_external_sensor import HUMIDITY_ATTRIBUTES, TEMPERATURE_ATTRIBUTES, r
 async def setup_climate(hass, aioclient_mock, *, external=True, fahrenheit=False):
     """内蔵の温湿度と任意の外部設定を用意。 / Set up hardware readings and optional external sources."""
     options = {"external_temperature_device-1": "sensor.temperature", "external_humidity_device-1": "sensor.humidity"} if external else {}
-    entry = MockConfigEntry(domain=DOMAIN, data={"api_key": "token"}, options=options)
+    entry = MockConfigEntry(domain=DOMAIN, data={"api_key": "token"}, options=options, unique_id="user-1")
     appliance = make_aircon()
     if fahrenheit:
         appliance["aircon"]["tempUnit"] = "f"

@@ -24,7 +24,7 @@ def relay_state(hass, kind="temperature", appliance_id="aircon-1"):
 
 async def setup_external(hass, aioclient_mock, options=None, appliances=None):
     """架空の設定で中継を準備。 / Set up relays with synthetic options."""
-    entry = MockConfigEntry(domain=DOMAIN, data={"api_key": "token"}, options=options or {})
+    entry = MockConfigEntry(domain=DOMAIN, data={"api_key": "token"}, options=options or {}, unique_id="user-1")
     mock_api(aioclient_mock, appliances=appliances if appliances is not None else [make_aircon()])
     await setup(hass, entry)
     return entry

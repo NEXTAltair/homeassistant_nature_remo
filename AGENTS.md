@@ -76,6 +76,13 @@ Entities are created only once, at platform setup, from those dicts. Newly added
 
 **Device grouping:** `device.py` builds all device information. Setup explicitly registers physical Remo devices, including sensorless Remo E hardware, before registering appliances. Hardware identifiers remain `(DOMAIN, remo_device_id)`; appliances use `(DOMAIN, appliance_id)` with nickname and model manufacturer/name. `async_update_device(via_device_id=...)` links each appliance to its hardware (supported since before HA 2025.12, avoiding the now-deprecated `via_device` argument). All appliance entities use the shared helper; built-in environmental and motion sensors remain on the hardware. Entity unique IDs and registered entity IDs stay unchanged. Options list only physical Remo registry devices, never appliance children.
 
+**Config flow and account identity** (`config_flow.py`, `account.py`):
+- New entries validate `GET /users/me` and use the required nonempty string `id` as their unique ID. Identical tokens are rejected before any request, including legacy entries. Different tokens for the same account and concurrent flows are rejected without updating existing entries.
+- Reauthentication validates the same endpoint and rejects a different account when the entry has a unique ID. Legacy entries receive an ID only when it is not already owned. Token/identity updates trigger exactly one reload, including when an update listener is present.
+- After a successful normal first refresh, setup attempts account identification only for entries without a unique ID. Failure, including authentication failure, logs a generic warning and leaves setup running; the next setup retries. Normal polling does not request account identity.
+- Verified legacy identities are retained in memory across unloads until entry removal. Duplicate accounts get a dismissible repair listing entry titles, without automatic deletion. `async_remove_entry` recomputes repairs so removing either registration clears a resolved duplicate; repairs are rebuilt on setup after restart.
+- Tokens never become unique IDs, titles or repair text.
+
 **Options flow** (`options_flow.py`):
 - The first step selects the update interval and optional Remo hardware. The second step uses a fixed `device` section (`ip_address`, `external_temperature`, `external_humidity`), translated with the selected hardware name. External fields appear only for hardware with an AC.
 - Existing flat storage keys remain unchanged. Editing one device preserves all others. Optional sensor selections use suggestions, so clearing them removes the saved key. Selections must exist, have finite numeric states, and use °C/°F for temperature or % for humidity.
