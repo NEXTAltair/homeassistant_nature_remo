@@ -38,5 +38,11 @@
     "invalid_aircon_response": {
       "message": "Nature Remo returned an invalid air conditioner response."
     }
+  },
+  "issues": {
+    "motion_entity_migration": {
+      "title": "Motion sensor entity IDs have changed",
+      "description": "Motion sensors now use the binary_sensor domain. Update sensor. references to the binary_sensor. IDs below in automations, scripts and dashboards. Names, icons, areas and disabled/hidden settings were preserved.\n\n{entities}\n\nDismiss this repair after updating your references."
+    }
   }
 }

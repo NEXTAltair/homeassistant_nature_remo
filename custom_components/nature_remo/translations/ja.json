@@ -38,5 +38,11 @@
     "invalid_aircon_response": {
       "message": "Nature Remo からのエアコンの応答が不正です。"
     }
+  },
+  "issues": {
+    "motion_entity_migration": {
+      "title": "人感センサーのエンティティ ID が変わりました",
+      "description": "人感センサーを binary_sensor ドメインに移しました。自動化・スクリプト・ダッシュボードの sensor. を、以下の binary_sensor. の ID に書き換えてください。名前・アイコン・エリア・無効化／非表示の設定は引き継いでいます。\n\n{entities}\n\n参照先の更新が終わったら、この修理通知を閉じてください。"
+    }
   }
 }

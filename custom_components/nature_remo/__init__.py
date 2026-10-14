@@ -8,9 +8,10 @@ from .api import NatureRemoAPI
 from .aircon import AirconControl
 from .coordinator import NatureRemoCoordinator
 from .const import DOMAIN
+from .migration import async_migrate_motion_entities
 
 _LOGGER = logging.getLogger(__name__)
-PLATFORMS = ["climate", "light", "sensor", "remote", "number"]
+PLATFORMS = ["climate", "light", "sensor", "remote", "number", "binary_sensor"]
 
 
 async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
@@ -76,6 +77,8 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
     hass.services.async_register(
         DOMAIN, "send_light_mode", handle_send_light_mode, supports_response=True
     )
+
+    async_migrate_motion_entities(hass, entry)
 
     # プラットフォームを起動 / Forward entry setup to the platform
     await hass.config_entries.async_forward_entry_setups(entry, PLATFORMS)

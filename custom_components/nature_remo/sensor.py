@@ -1,7 +1,5 @@
-from datetime import datetime, timezone, timedelta
-from homeassistant.components.sensor import SensorEntity
+from homeassistant.components.sensor import SensorDeviceClass, SensorEntity
 from homeassistant.helpers.update_coordinator import CoordinatorEntity
-from homeassistant.components.binary_sensor import BinarySensorEntity
 from .coordinator import NatureRemoCoordinator
 from .const import DOMAIN
 
@@ -95,19 +93,6 @@ async def async_setup_entry(hass, entry, async_add_entities):
 
     # モーションセンサー
     for device_id, data in coordinator.motion_sensors.items():
-        # モーション検出センサー（ON/OFF）の追加
-        entities.append(
-            NatureRemoMotionBinarySensor(
-                coordinator,
-                device_id,
-                data["name"],
-                {
-                    "device_id": data["device_id"],
-                    "name": data["name"],
-                    "firmware_version": data["firmware_version"],
-                },
-            )
-        )
         # モーション検出センサー（検出時刻）の追加
         entities.append(
             NatureRemoMotionTimeSensor(
@@ -198,7 +183,7 @@ class NatureRemoMotionTimeSensor(CoordinatorEntity, SensorEntity):
         self._device = device
         self._attr_name = f"Nature Remo {name} Last Motion"
         self._attr_unique_id = f"{device_id}_last_motion"
-        self._attr_device_class = None  # 時刻だから特に設定なし（UIで表示できる）
+        self._attr_device_class = SensorDeviceClass.TIMESTAMP
         self._attr_native_unit_of_measurement = None
 
     @property
@@ -217,49 +202,10 @@ class NatureRemoMotionTimeSensor(CoordinatorEntity, SensorEntity):
     @property
     def native_value(self):
         """
-        最新のモーション検出時刻をISO形式で返す
-        Return the last motion detection timestamp in ISO format.
+        最新のモーション検出時刻を datetime で返す
+        Return the last motion detection timestamp as a datetime.
         """
         motion = self.coordinator.motion_sensors.get(self._device_id)
         if motion and "last_motion" in motion:
-            return motion["last_motion"].isoformat()
+            return motion["last_motion"]
         return None
-
-
-class NatureRemoMotionBinarySensor(CoordinatorEntity, BinarySensorEntity):
-    def __init__(self, coordinator, device_id, name, device):
-        """
-        モーション検出センサーの初期化
-        Initialize the binary motion sensor entity.
-        """
-        super().__init__(coordinator)
-        self._device = device
-        self._device_id = device_id
-        self._attr_name = f"Nature Remo {name} Motion"
-        self._attr_unique_id = f"{device_id}_motion"
-        self._attr_device_class = "motion"
-
-    @property
-    def device_info(self):
-        """
-        モーション検出センサーのデバイス情報
-        Return device info for the motion sensor.
-        """
-        return {
-            "identifiers": {(DOMAIN, self._device["device_id"])},
-            "name": self._device["name"],
-            "manufacturer": "Nature",
-            "model": self._device.get("firmware_version", "Nature Remo"),
-        }
-
-    @property
-    def is_on(self):
-        """
-        最後にモーション検出してから5分以内の場合は「ON」を返す
-        Return True if motion was detected within the last 5 minutes.
-        """
-        motion = self.coordinator.motion_sensors.get(self._device_id)
-        if motion and "last_motion" in motion:
-            now = datetime.now(timezone.utc)
-            return (now - motion["last_motion"]) < timedelta(minutes=5)
-        return False
