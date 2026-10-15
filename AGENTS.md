@@ -132,6 +132,8 @@ Entities are created only once, at platform setup, from those dicts. Newly added
 - Commands map case-insensitively to signal names from the Remo app.
 - Signals named `on`/`オン` and `off`/`オフ` back `turn_on`/`turn_off`.
 - Sends `POST /signals/{id}/send`.
+- Generic learned remotes always have `is_on = None`; successful sends update only `last_command` and its legacy `command` alias. These attributes track remote service sends only and reset on reload. No physical state is inferred; missing discrete power signals raise translated service errors without a toggle fallback.
+- New generic remotes are enabled but hidden by default. After platform setup, `remote_visibility.py` offers a repair for existing visible remotes; `repairs.py` hides only selected entities and remembers both hidden and kept-visible choices in entity registry options. Existing hidden/disabled entries, IDs, names, areas and services are preserved. Hiding affects auto-generated dashboards; HA device settings and more-info still render power actions for hidden remotes. Manual dashboard cards require manual replacement with signal buttons. TV remotes and dedicated light/climate entities are unaffected.
 
 **Water heaters (EcoCute):**
 - Setup creates `NatureRemoEchonetLiteCoordinator` only if the main snapshot contains `EL_ELECTRIC_WATER_HEATER`. It fetches `GET /echonetlite/appliances` separately every 300 seconds and skips the request if no heaters remain in the main snapshot.

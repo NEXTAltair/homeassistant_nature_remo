@@ -105,6 +105,9 @@
     },
     "unsupported_light_mode": {
       "message": "The mode {mode} is not supported by {entity_id}."
+    },
+    "unsupported_ir_power": {
+      "message": "{entity} has no separate {command} signal. Use its learned-signal buttons or remote.send_command for an explicit command. A power toggle cannot guarantee on or off."
     }
   },
   "issues": {
@@ -115,6 +118,26 @@
     "duplicate_account": {
       "title": "Duplicate Nature account registrations",
       "description": "The same Nature account is registered more than once. Keep one registration and delete the others from Settings → Devices & services. No registrations have been deleted automatically.\n\n{entries}"
+    },
+    "stateless_remote_visibility": {
+      "title": "Use buttons for learned infrared commands",
+      "fix_flow": {
+        "step": {
+          "confirm": {
+            "title": "Use buttons for learned infrared commands",
+            "description": "These remotes cannot read the appliance’s power state. Select the remotes to hide from automatically generated dashboards and use the individual learned-signal buttons instead. Hidden remotes remain enabled: existing entity IDs and remote.send_command automations keep working. Unchecked remotes stay visible, and your choice is remembered. You can show a hidden remote again in its entity settings. The device settings page and more-info dialog still list remote power actions; Home Assistant does not hide these actions per entity. Manually configured dashboard cards must be replaced with signal buttons separately. No infrared commands will be sent.",
+            "data": {
+              "remotes": "Remotes to hide"
+            }
+          }
+        },
+        "error": {
+          "entities_changed": "The available remotes changed. Review the selection and try again."
+        },
+        "abort": {
+          "entry_not_loaded": "Load the Nature Remo integration before reviewing these controls."
+        }
+      }
     }
   },
   "options": {

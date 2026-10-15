@@ -3,7 +3,7 @@
 from copy import deepcopy
 
 import pytest
-from homeassistant.const import STATE_UNAVAILABLE
+from homeassistant.const import STATE_UNAVAILABLE, STATE_UNKNOWN
 from homeassistant.exceptions import HomeAssistantError
 from homeassistant.helpers import device_registry as dr, entity_registry as er
 
@@ -67,7 +67,8 @@ async def test_existing_remote_still_sends_signals(hass, aioclient_mock, config_
     aioclient_mock.post(url, json={})
     await hass.services.async_call("remote", "send_command", {"entity_id": remote_id, "command": "ON"}, blocking=True)
     assert str(aioclient_mock.mock_calls[-1][1]) == url
-    assert hass.states.get(remote_id).state == "on"
+    assert hass.states.get(remote_id).state == STATE_UNKNOWN
+    assert hass.states.get(remote_id).attributes["last_command"] == "on"
     assert entity_id(hass, "signal-on") is not None
 
 

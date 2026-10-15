@@ -1,0 +1,9 @@
+# Stateless learned remotes (#30)
+
+Generic learned IR appliances, including circulators and KVM switches, expose no physical power state. The old remote initialized itself to off and returned the last command as its state, which made ordinary frontend controls misleading.
+
+Keep the existing remote IDs and command services, but use the standard RemoteEntity state contract with `is_on = None`. Store successful remote sends only in `last_command`, retaining `command` as a compatibility alias. Discrete on/off signal matching remains available without claiming a physical state. Never substitute an ambiguous power signal for either service.
+
+Individual signal buttons are the primary controls. New generic remotes are hidden, still enabled, through the entity registry. Existing visible remotes cannot be distinguished from an explicit user choice to show them, so a repair flow lets the user select which to hide. Registry options remember both selected and unchecked choices; existing hidden/disabled entries are already considered reviewed. Flow values use stable registry IDs, are checked again at submission, and preserve unrelated options and user metadata. Removing the config entry removes its repair.
+
+This adds a visibility migration without replacing the legacy command interface. No extra polling, automatic appliance commands or dashboard edits are introduced. HA device settings and more-info still render remote power actions even when hidden; the remote feature enum offers no per-entity power flags. Hiding affects auto-generated dashboards. Manually placed dashboard controls require replacement with buttons, and users can show hidden remotes again. TV, climate and light retain their independent state models. Keep translated repair text, README guidance and tests aligned with these boundaries.
