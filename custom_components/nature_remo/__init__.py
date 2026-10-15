@@ -16,6 +16,7 @@ from .const import DOMAIN
 from .migration import async_migrate_motion_entities
 from .device import async_register_devices
 from .echonetlite import NatureRemoEchonetLiteCoordinator, WATER_HEATER_TYPE
+from .remote_visibility import async_offer_remote_visibility_repair, async_remove_remote_visibility_repair
 
 _LOGGER = logging.getLogger(__name__)
 PLATFORMS = ["climate", "light", "sensor", "remote", "number", "binary_sensor", "button"]
@@ -142,6 +143,7 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
     # Set up relay sensors before climate subscribes to them.
     await hass.config_entries.async_forward_entry_setups(entry, ["sensor"])
     await hass.config_entries.async_forward_entry_setups(entry, [platform for platform in PLATFORMS if platform != "sensor"])
+    async_offer_remote_visibility_repair(hass, entry, coordinator)
 
     entry.async_on_unload(entry.add_update_listener(async_reload_options))
 
@@ -170,3 +172,4 @@ async def async_unload_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
 async def async_remove_entry(hass: HomeAssistant, entry: ConfigEntry) -> None:
     """残った entry で重複通知を更新。 / Refresh repairs using the remaining entries."""
     async_refresh_account_repairs(hass)
+    async_remove_remote_visibility_repair(hass, entry.entry_id)

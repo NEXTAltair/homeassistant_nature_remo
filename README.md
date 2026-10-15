@@ -128,11 +128,19 @@ Each signal registered in the Remo app creates a button with the signal name on 
 
 Special AC operations such as internal cleaning can be used by learning the operation as a signal in the Remo app. API `extras` are not exposed as entities. Send failures appear as Home Assistant errors.
 
+For stateless appliances such as circulators and KVM switches, use these momentary buttons as the normal controls. A learned signal named “Power” does not establish whether it turns power on, off, or toggles it; keep its name unless its behavior has been verified.
+
+New generic learned-signal `remote` entities are hidden by default, but remain enabled for existing scripts and `remote.send_command`. Their state is always `unknown`, including after a successful send. `last_command` records the last successful command sent through that remote (`command` remains an alias); neither attribute confirms physical state, and button presses or other remotes are not tracked there. Restarting or reloading clears these attributes. Automations that used the old remote state as command history should use `last_command`; physical power feedback requires a separate state source.
+
+For existing visible remotes, Settings → System → Repairs offers **Use buttons for learned infrared commands**. Select the remotes to hide; unchecked remotes stay visible. This changes visibility only, preserving entity IDs, names, areas, disabled settings and command services. The choice is remembered, and entities can be shown again in their settings. Existing hidden/disabled remotes are left as configured. The device settings page and more-info dialog still list remote power actions, even for hidden entities; HA has no per-remote feature flag to remove them. Hiding applies to automatically generated dashboards. Manually configured dashboard cards still need to be replaced with signal buttons: setting state to unknown or hiding an entity does not rewrite dashboard cards. TV remotes and dedicated climate/light controls keep their own behavior.
+
 ---
 
 ## Sample: Using Remote Entities
 
 This integration supports `remote` entities generated from Nature Remo's defined `signals`. These entities allow you to send IR commands directly from Home Assistant.
+
+Matching ignores letter case. `remote.turn_on` requires a signal named `on` or `オン`; `remote.turn_off` requires `off` or `オフ`. Without the corresponding separate signal, the action fails before sending. A “Power” signal is never substituted for either action: if it toggles power, calling `turn_on` on an already running appliance could turn it off.
 
 ### Example: Service Call
 

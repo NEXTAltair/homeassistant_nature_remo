@@ -105,6 +105,9 @@
     },
     "unsupported_light_mode": {
       "message": "{entity_id} はモード {mode} に対応していません。"
+    },
+    "unsupported_ir_power": {
+      "message": "{entity}には専用の{command}信号がありません。学習信号のボタン、またはremote.send_commandで操作を明示してください。電源切替信号ではオン・オフを保証できません。"
     }
   },
   "issues": {
@@ -115,6 +118,26 @@
     "duplicate_account": {
       "title": "Nature アカウントが重複登録されています",
       "description": "同じ Nature アカウントが複数登録されています。設定 → デバイスとサービスで、1つだけ残してほかの登録を削除してください。自動では削除していません。\n\n{entries}"
+    },
+    "stateless_remote_visibility": {
+      "title": "学習IR機器の操作をボタン中心に変更",
+      "fix_flow": {
+        "step": {
+          "confirm": {
+            "title": "学習IR機器の操作をボタン中心に変更",
+            "description": "これらのremoteは実際の電源状態を取得できません。自動生成ダッシュボードから非表示にするremoteを選び、信号ごとのボタンを使ってください。非表示後も有効なままで、既存のエンティティIDやremote.send_commandを使う自動化は維持されます。選択しなかったremoteは表示を維持し、この選択を記憶します。非表示にしたremoteはエンティティ設定から再表示できます。機器設定ページや詳細ダイアログにはremoteの電源操作が残ります。HAにはこれらを個別に隠す機能がありません。手動で配置したダッシュボードのカードは別途信号ボタンに置き換えてください。赤外線は送信しません。",
+            "data": {
+              "remotes": "非表示にするremote"
+            }
+          }
+        },
+        "error": {
+          "entities_changed": "対象のremoteが変わりました。選択を確認して再試行してください。"
+        },
+        "abort": {
+          "entry_not_loaded": "Nature Remo統合を読み込んでから操作表示を確認してください。"
+        }
+      }
     }
   },
   "options": {
